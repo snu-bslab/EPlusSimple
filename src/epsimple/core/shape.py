@@ -6,6 +6,7 @@
 # built-in modules
 from __future__ import annotations
 import math
+import hashlib
 from copy  import deepcopy
 from types import SimpleNamespace
 from abc   import (
@@ -287,10 +288,10 @@ class Surface:
                 if self.azimuth is not None:
                     azimuth_radian = math.radians(self.azimuth)
                 else:
-                    if self.ID.startswith(f"{SpecialTag.CLONE}"):
-                        azimuth_radian = (math.log10(abs(hash(self.ID.replace(f"{SpecialTag.CLONE}","")))) + math.pi) % (2*math.pi)
-                    else:
-                        azimuth_radian = math.log10(abs(hash(self.ID))) % (2*math.pi)
+                    hash_value = hashlib.sha256(self.ID.removeprefix(SpecialTag.CLONE.value).encode("utf-8")).hexdigest()
+                    azimuth_radian = int(hash_value[:12], 16) / (16**12) * 2 * math.pi
+                    if self.ID.startswith(SpecialTag.CLONE.value):
+                        azimuth_radian = (azimuth_radian + math.pi) % (2*math.pi)
                         
                 x = math.cos(azimuth_radian - 3/2*math.pi) * width/2
                 y = math.sin(azimuth_radian - 3/2*math.pi) * width/2
