@@ -2487,6 +2487,12 @@ class RadiantFloor(SupplySystem):
                 f"그런건 못해요..."
             )
         
+        RADIANTABLE_MINIMUM_SURFACE_FRACTION = 1E-3
+        target_surfaces = [
+            surface for surface in zone.floor_surface 
+            if surface.area > zone.floor_area * RADIANTABLE_MINIMUM_SURFACE_FRACTION
+        ]
+        
         obj_internal_heatsources = [
             IdfObject("ConstructionProperty:InternalHeatSource",{
                 "Name": f"{surface.name} Internal Heat Source",
@@ -2496,17 +2502,17 @@ class RadiantFloor(SupplySystem):
                 "Dimensions for the CTF Calculation": 1,
                 "Tube Spacing": 0.3,
             }, ignore_default=False)
-            for surface in zone.floor_surface
+            for surface in target_surfaces
         ]
         
-        flow_fractions = [surface.area/zone.floor_area for surface in zone.floor_surface]
+        flow_fractions = [surface.area/sum(surf.area for surf in target_surfaces) for surface in target_surfaces]
         obj_radiant_floor = [
             # surface
             IdfObject("ZoneHVAC:LowTemperatureRadiant:SurfaceGroup",{
                 "Name": f"RadiantFloorSurfaceGroup_for_{zone.name}",
                 **{
                     f"Surface {idx+1} Name": surface.name                    
-                    for idx, surface in enumerate(zone.floor_surface)
+                    for idx, surface in enumerate(target_surfaces)
                 },
                 **{
                     f"Flow Fraction for Surface {idx+1}": fraction                    
