@@ -419,7 +419,8 @@ class Chiller(SourceSystem):
                 "Chilled Water Outlet Node Name": f"{self.idf_objname} ChilledWater OutletNode",
                 "Condenser Inlet Node Name" : f"{self.idf_objname} Condenser InletNode" ,
                 "Condenser Outlet Node Name": f"{self.idf_objname} Condenser OutletNode",
-            }, ignore_default=False),
+                "Condenser Type": "WaterCooled",
+            }, ignore_default=True),
             IdfObject("Pump:VariableSpeed",{
                 "Name": f"VSDPump_for_{self.idf_objname}",
                 "Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode" ,
