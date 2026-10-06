@@ -8,7 +8,7 @@ title: EPlusSimple
 
 type: software
 
-version: 0.6.5
+version: 0.6.6
 
 date-released: 2026-08-07
 
@@ -61,7 +61,7 @@ preferred-citation:
 
   title: EPlusSimple
 
-  version: 0.6.5
+  version: 0.6.6
 
   year: 2026
 
