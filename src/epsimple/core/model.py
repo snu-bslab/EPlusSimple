@@ -929,7 +929,8 @@ class GreenRetrofitResult:
     def to_source_uses(self) -> pd.DataFrame:
         
         df_source = deepcopy(self.to_site_uses())
-        for idx, coeff in zip(df_source.index, [v.value for v in Site2Source]):
+        for idx in df_source.index:
+            coeff = Site2Source[idx].value
             df_source.loc[idx] = df_source.loc[idx].map(lambda l: [round(v*coeff,GreenRetrofitResult.VALID_DIGITS) for v in l])
         
         return df_source
@@ -937,7 +938,8 @@ class GreenRetrofitResult:
     def to_co2(self) -> pd.DataFrame:
         
         df_co2 = deepcopy(self.to_site_uses())
-        for idx, coeff in zip(df_co2.index, [v.value for v in Site2CO2]):
+        for idx in df_co2.index:
+            coeff = Site2CO2[idx].value
             df_co2.loc[idx] = df_co2.loc[idx].map(lambda l: [round(v*coeff,GreenRetrofitResult.VALID_DIGITS) for v in l])
         
         return df_co2
@@ -945,7 +947,8 @@ class GreenRetrofitResult:
     def to_cost(self) -> pd.DataFrame:
         
         df_cost = deepcopy(self.to_site_uses())
-        for idx, coeff in zip(df_cost.index, [v.value for v in Site2Cost]):
+        for idx in df_cost.index:
+            coeff = Site2Cost[idx].value
             df_cost.loc[idx] = df_cost.loc[idx].map(lambda l: [round(v*coeff,GreenRetrofitResult.VALID_DIGITS) for v in l])
         
         return df_cost
