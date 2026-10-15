@@ -12,6 +12,9 @@ import re
 import pandas as pd
 
 # local modules
+# [주의 · 2026-09-14] venv/python312._pth 에 `..\src` 가 들어 있어, PYTHONPATH 를 잡지 않고 이 스크립트를
+#   실행하면 아래 import 는 legacy_v060/src/reb 가 아니라 <repo>/src/reb (v0.7.1) 를 가져온다.
+#   legacy 트리를 쓰려면 PYTHONPATH=<repo>/legacy_v060/src 를 먼저 주거나 sys.path 에 앞세워야 한다.
 from reb.report import build_report, MetaData, escape_str
 
 

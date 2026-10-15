@@ -1273,6 +1273,13 @@ def parse_perfchange(masterdict: dict) -> str:
         v = masterdict.get(f"{prefix}_{col}")
         return "-" if pd.isna(v) else f"{v:.2f}"
 
+    # [메모 · 2026-09-14]
+    #   외벽/창호/지붕/바닥 값은 masterdb 만 읽는다. 시뮬레이션 입력 엑셀·.grr 과는 코드상 연결이 없다
+    #   (build_report 가 엑셀에서 쓰는 건 건물명·주소·허가일자뿐).
+    #   실제 IDF(result_idf)와 대조한 결과: 외벽·창호는 masterdb 와 일치하고, 지붕·바닥의 1.16 도
+    #   엔진의 실제 동작(구조체 미입력 시 '층간바닥' 행 사용 — epsimple/core/construction.py
+    #   get_regulated_construction 의 주석 참고)과 일치한다. 즉 masterdb 가 시뮬레이션 입력값과 같다.
+    #   엔진 값을 따로 계산해 masterdb 와 대조·게이팅하는 시도는 같은 날 되돌렸다(동작 변경 없음).
     df = pd.DataFrame(
         [
             [
@@ -1337,9 +1344,9 @@ def parse_perfchange(masterdict: dict) -> str:
             ],
             [
                 "난방1 용량 [kW]",
-                "-" if pd.isna(masterdict.get("GR이전_난방1_용량 [kW]")) else f"{masterdict.get('GR이전_난방1_용량 [kW]')*1E-3:.2f}",
-                "-" if pd.isna(masterdict.get("GR이후_난방1_용량 [kW]")) else f"{masterdict.get('GR이후_난방1_용량 [kW]')*1E-3:.2f}",
-                "-" if pd.isna(masterdict.get("N년차_난방1_용량 [kW]")) else f"{masterdict.get('N년차_난방1_용량 [kW]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("GR이전_난방1_용량 [W]")) else f"{masterdict.get('GR이전_난방1_용량 [W]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("GR이후_난방1_용량 [W]")) else f"{masterdict.get('GR이후_난방1_용량 [W]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("N년차_난방1_용량 [W]")) else f"{masterdict.get('N년차_난방1_용량 [W]')*1E-3:.2f}",
                 "/".join(set([
                     "-" if pd.isna(masterdict.get("GR이전_난방1_근거")) else masterdict.get("GR이전_난방1_근거"),
                     "-" if pd.isna(masterdict.get("GR이후_난방1_근거")) else masterdict.get("GR이후_난방1_근거"),
@@ -1381,9 +1388,9 @@ def parse_perfchange(masterdict: dict) -> str:
             ],
             [
                 "냉방1 용량 [kW]",
-                "-" if pd.isna(masterdict.get("GR이전_냉방1_용량 [kW]")) else f"{masterdict.get('GR이전_냉방1_용량 [kW]')*1E-3:.2f}",
-                "-" if pd.isna(masterdict.get("GR이후_냉방1_용량 [kW]")) else f"{masterdict.get('GR이후_냉방1_용량 [kW]')*1E-3:.2f}",
-                "-" if pd.isna(masterdict.get("N년차_냉방1_용량 [kW]")) else f"{masterdict.get('N년차_냉방1_용량 [kW]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("GR이전_냉방1_용량 [W]")) else f"{masterdict.get('GR이전_냉방1_용량 [W]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("GR이후_냉방1_용량 [W]")) else f"{masterdict.get('GR이후_냉방1_용량 [W]')*1E-3:.2f}",
+                "-" if pd.isna(masterdict.get("N년차_냉방1_용량 [W]")) else f"{masterdict.get('N년차_냉방1_용량 [W]')*1E-3:.2f}",
                 "/".join(set([
                     "-" if pd.isna(masterdict.get("GR이전_냉방1_근거")) else masterdict.get("GR이전_냉방1_근거"),
                     "-" if pd.isna(masterdict.get("GR이후_냉방1_근거")) else masterdict.get("GR이후_냉방1_근거"),
@@ -1418,9 +1425,9 @@ def parse_perfchange(masterdict: dict) -> str:
                 "-" if pd.isna(masterdict.get("GR이후_전열 교환기_난방[%]")) else f"{masterdict.get('GR이후_전열 교환기_난방[%]'):.1f}%",
                 "-" if pd.isna(masterdict.get("N년차_전열 교환기_난방[%]")) else f"{masterdict.get('N년차_전열 교환기_난방[%]'):.1f}%",
                 "/".join(set([
-                    "-" if pd.isna(masterdict.get("GR이전_전열 교환기_난방 근거")) else masterdict.get("GR이전_전열 교환기_난방 근거"),
-                    "-" if pd.isna(masterdict.get("GR이후_전열 교환기_난방 근거")) else masterdict.get("GR이후_전열 교환기_난방 근거"),
-                    "-" if pd.isna(masterdict.get("N년차_전열 교환기_난방 근거")) else masterdict.get("N년차_전열 교환기_난방 근거"),
+                    "-" if pd.isna(masterdict.get("GR이전_전열 교환기_근거")) else masterdict.get("GR이전_전열 교환기_근거"),
+                    "-" if pd.isna(masterdict.get("GR이후_전열 교환기_근거")) else masterdict.get("GR이후_전열 교환기_근거"),
+                    "-" if pd.isna(masterdict.get("N년차_전열 교환기_근거")) else masterdict.get("N년차_전열 교환기_근거"),
                 ]) - {"-"})
             ],
             [
@@ -1429,9 +1436,9 @@ def parse_perfchange(masterdict: dict) -> str:
                 "-" if pd.isna(masterdict.get("GR이후_전열 교환기_냉방[%]")) else f"{masterdict.get('GR이후_전열 교환기_냉방[%]'):.1f}%",
                 "-" if pd.isna(masterdict.get("N년차_전열 교환기_냉방[%]")) else f"{masterdict.get('N년차_전열 교환기_냉방[%]'):.1f}%", 
                 "/".join(set([
-                    "-" if pd.isna(masterdict.get("GR이전_전열 교환기_냉방 근거")) else masterdict.get("GR이전_전열 교환기_냉방 근거"),
-                    "-" if pd.isna(masterdict.get("GR이후_전열 교환기_냉방 근거")) else masterdict.get("GR이후_전열 교환기_냉방 근거"),
-                    "-" if pd.isna(masterdict.get("N년차_전열 교환기_냉방 근거")) else masterdict.get("N년차_전열 교환기_냉방 근거"),
+                    "-" if pd.isna(masterdict.get("GR이전_전열 교환기_근거")) else masterdict.get("GR이전_전열 교환기_근거"),
+                    "-" if pd.isna(masterdict.get("GR이후_전열 교환기_근거")) else masterdict.get("GR이후_전열 교환기_근거"),
+                    "-" if pd.isna(masterdict.get("N년차_전열 교환기_근거")) else masterdict.get("N년차_전열 교환기_근거"),
                 ]) - {"-"})
             ],
             [
@@ -1795,7 +1802,7 @@ def parse_equinity(masterdict: dict) -> str:
                 masterdict.get("GR이후_그린리모델링 공사내역_벽체단열_보고서"),
                 masterdict.get("GR이후_그린리모델링 공사내역_벽체단열_현장확인"),
                 masterdict.get("GR이후_그린리모델링 공사내역_벽체단열_일치여부"),
-                "예시: 남쪽 면에만 시공함.",
+                "",
             ],
             [
                 "지붕단열",
@@ -1809,7 +1816,7 @@ def parse_equinity(masterdict: dict) -> str:
                 masterdict.get("GR이후_그린리모델링 공사내역_바닥단열_보고서"),
                 masterdict.get("GR이후_그린리모델링 공사내역_바닥단열_현장확인"),
                 masterdict.get("GR이후_그린리모델링 공사내역_바닥단열_일치여부"),
-                "예시: 그냥 바닥난방 다시 깐 것임. 단열 했다고 보기 어려움.",
+                "",
             ],
             [
                 "창호",

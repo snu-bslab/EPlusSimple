@@ -509,6 +509,15 @@ class SurfaceConstruction:
         regulation_date = max(date for date in surface_construction_regulation_dates if date < vintage)
         
         # part
+        # [주의 · 2026-09-14 확인, 수정하지 않음]
+        #   아래 CEILING/FLOOR 분기의 `is` 비교는 실제 호출 경로에서 항상 False 다.
+        #   - model.py(to_dragon) 는 surface.type / surface.boundary 를 넘기는데, shape.py 의 getter 가
+        #     str(enum) = 'outdoors' 같은 순수 문자열을 돌려주므로 enum 멤버와 `is` 로 같을 수 없다.
+        #   - 결과: 구조체 미입력 지붕·천장·바닥은 예외 없이 "바닥난방이 아닌 층간바닥" 행
+        #     (2001년 이후 전 지역 1.16 W/m2K)으로 조회된다. 외벽은 match 가 `==` 비교라 정상.
+        #     result_idf 의 IDF 구조체 이름($FROM_DB$:...&바닥난방이 아닌 층간바닥&...)으로 확인.
+        #   - masterdb 의 지붕·바닥 1.16 은 이 실제 동작과 일치한다.
+        #   - `==` 로 바꾸면 2060건 시뮬레이션 결과가 전부 바뀌므로 의도적으로 손대지 않고 기록만 남긴다.
         match surface_type:
             case SurfaceType.WALL   :
                     part = "외벽"
