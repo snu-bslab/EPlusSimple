@@ -146,9 +146,49 @@ def get_master_df() -> pd.DataFrame:
         for idx, col in enumerate(df.columns)
     ]
     
+    # N년차 보건지소·진료소 값이 한 칸 오른쪽으로 밀려 있는 행 바로잡기
+    df = _fix_shifted_health_block(df, "N년차")
+
     # 인덱스 정리
     df.index = df.loc[:,["임시 고유번호","건축물명"]].apply(lambda x: f"{int(x.iloc[0]):03d}_{x.iloc[1].strip()}".replace(" ", ""), axis=1)
-    
+
+    return df
+
+
+# masterdb 총괄리스트의 보건지소·진료소 블록 (열 순서 그대로)
+HEALTH_BLOCK_FIELDS = [
+    "직원수", "외근 직원수", "오전 방문객수", "오전 체류시간", "방문객수", "오후 체류시간",
+    "기본운영 시간", "외근시간", "집중진료 시간", "외근요일", "집중진료 요일",
+]
+_TIMERANGE = re.compile(r"^\s*\d{1,2}:\d{2}\s*~\s*\d{1,2}:\d{2}\s*$")
+
+
+def _is_timerange(v) -> bool:
+    return isinstance(v, str) and bool(_TIMERANGE.match(v))
+
+
+def _fix_shifted_health_block(df: pd.DataFrame, prefix: str) -> pd.DataFrame:
+    """masterdb 원본은 두고, 읽은 값에서 보건지소·진료소 블록의 한 칸 밀림을 되돌린다.
+
+    밀린 행은 '기본운영 시간' 칸에 체류시간 숫자가, '외근시간' 칸에 기본운영 시간이 들어 있다.
+    이런 행만 골라 블록 값을 왼쪽으로 한 칸 당긴다. 맨 끝 '집중진료 요일'은 원본에 없으므로 비운다.
+    masterdb 가 나중에 바로잡히면 조건에 걸리지 않아 그대로 둔다.
+    """
+    cols = [f"{prefix}_보건지소·진료소_{f}" for f in HEALTH_BLOCK_FIELDS]
+    missing = [c for c in cols if c not in df.columns]
+    if missing:
+        raise KeyError(f"masterdb 에 보건지소·진료소 열이 없습니다: {missing}")
+
+    base_col = f"{prefix}_보건지소·진료소_기본운영 시간"
+    next_col = f"{prefix}_보건지소·진료소_외근시간"
+    shifted = df[base_col].notna() & ~df[base_col].map(_is_timerange) & df[next_col].map(_is_timerange)
+
+    df = df.copy()
+    values = df.loc[shifted, cols].to_numpy(dtype=object)
+    for i, col in enumerate(cols):
+        df[col] = df[col].astype(object)
+        df.loc[shifted, col] = values[:, i + 1] if i + 1 < len(cols) else None
+    print(f"[masterdb] {prefix} 보건지소·진료소 값 한 칸 밀림 보정: {int(shifted.sum())}행")
     return df
     
 
