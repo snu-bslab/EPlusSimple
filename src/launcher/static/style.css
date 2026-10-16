@@ -1,0 +1,52 @@
+/* 기본 스타일은 유지 */
+body { font-family: sans-serif; margin: 2em; }
+.form-row { display: flex; align-items: center; margin-bottom: 1em; gap: 0.5em; }
+.file-label, .btn, #dataTypeSelector { display: flex; align-items: center; justify-content: center; height: 42px; padding: 0 1.5em; border-radius: 6px; font-size: 1rem; font-weight: bold; color: #fff; background: #36c46d; cursor: pointer; transition: background 0.15s; white-space: nowrap; border: 1px solid #2da15a; }
+.file-label:hover, .btn:hover, #dataTypeSelector:hover { background: #24994d; }
+input[type="file"] { display: none; }
+.filename-box { flex-grow: 1; min-height: 2em; padding: 0.5em 1em; background: #fff; color: #222; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; word-break: break-all; box-shadow: 0 1px 3px rgba(0,0,0,0.03); }
+#comparison-filenames { margin-top: 1em; padding: 0.8em 1.2em; background-color: #f0f8ff; border: 1px solid #cce5ff; border-radius: 6px; font-size: 0.9em; color: #004085; }
+#comparison-filenames ol { padding-left: 1.5em; margin: 0.5em 0 0; }
+#comparison-filenames li { margin-bottom: 0.3em; }
+
+/* ========== [수정] 디버그 리포트 스타일 ========== */
+.debug-reports-area { margin-top: 2.5em; padding: 1.5em; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
+.debug-reports-area h2 { margin-top: 0; color: #333; border-bottom: 2px solid #eee; padding-bottom: 0.5em; }
+.debug-reports-area h3 { margin-top: 1em; margin-bottom: 0.5em; font-size: 1.2em; }
+.error-summary { background-color: #f8d7da; color: #721c24; padding: 1em; border: 1px solid #f5c6cb; border-radius: 6px; font-weight: bold; }
+.report-box { padding: 0.5em 1.5em 1.5em 1.5em; border-radius: 6px; border: 1px solid; }
+.report-severe { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+.report-warning { background-color: #fff3cd; border-color: #ffeeba; color: #856404; }
+.report-item { margin-top: 1em; }
+.report-item + .report-item { border-top: 1px dashed #00000033; padding-top: 1em; }
+.report-item h4 { margin-top: 0; margin-bottom: 0.8em; color: #555; font-size: 1em; font-weight: bold; }
+.debug-table { width: 100%; border-collapse: collapse; background-color: #fff; font-size: 0.9em; }
+.debug-table th, .debug-table td { border: 1px solid #ddd; padding: 0.5em; text-align: left; }
+.debug-table th { background-color: #f2f2f2; font-weight: bold; }
+
+/* ========== 그래프 영역 (Grid 레이아웃) ========== */
+.graphs-area { margin-top: 2.5em; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2em; }
+.graph-container { background: #e6faef; border-radius: 12px; padding: 1.1em 1em 0.6em 1em; border: 2px dashed #24994d; box-sizing: border-box; display: flex; flex-direction: column; }
+canvas { width: 100% !important; max-height: 230px; }
+.graph-title { text-align: center; margin-top: 0.5em; font-size: 1.05em; color: #219a55; font-weight: bold; }
+
+/* --- 연간 요약 비교 섹션 스타일 (테이블 형식으로 변경) --- */
+.summary-comparison-graph { grid-column: 1 / -1; }
+.summary-table { border-collapse: collapse; width: 100%; margin-top: 1em; font-size: 0.9em; }
+.summary-table th, .summary-table td { border: 1px solid #d0e0d8; padding: 0.6em; text-align: right; }
+.summary-table th { background-color: #f8fdfa; color: #1a6e3d; font-weight: bold; text-align: center; }
+.summary-table .metric-title { background-color: #e6faef; font-weight: bold; text-align: left; grid-column: 1 / -1; }
+.summary-table .case-label { text-align: center; font-weight: bold; }
+.summary-down { color: #007bff; }
+.summary-up { color: #dc3545; }
+
+/* --- 커스텀 범례(Legend) 스타일 --- */
+.custom-legend { display: grid; grid-template-columns: repeat(4, 1fr); grid-template-rows: repeat(2, auto); gap: 4px 8px; padding: 0.5em 0; justify-content: center; }
+.legend-item { display: flex; align-items: center; cursor: pointer; font-size: 0.85em; }
+.legend-item-hidden { text-decoration: line-through; color: #888; }
+.legend-color-box { width: 12px; height: 12px; margin-right: 6px; border-radius: 2px; display: inline-block; }
+
+/* --- 내부가 분할된 그래프 컨테이너 --- */
+.split-container { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 2em; flex-direction: row; }
+.split-container .inner-chart { display: flex; flex-direction: column; max-height: 300px; }
+.split-container canvas { max-height: 250px; }

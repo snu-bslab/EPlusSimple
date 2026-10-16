@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>리모델링 전/후 비교 시뮬레이션</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>리모델링 전/후 비교 시뮬레이션</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" autocomplete="off">
+        <div class="form-row">
+            <label for="fileInputBefore" class="file-label">리모델링 전 파일 선택</label>
+            <div class="filename-box" id="filenameBoxBefore">파일이 선택되지 않았습니다.</div>
+        </div>
+        <div class="form-row">
+            <label for="fileInputAfter" class="file-label" style="background-color: #5b8cde;">리모델링 후 파일 선택</label>
+            <div class="filename-box" id="filenameBoxAfter">파일이 선택되지 않았습니다. (선택하지 않으면 리모델링 전만 실행, 여러개 선택 시 한번에 비교 가능)</div>
+        </div>
+        <input id="fileInputBefore" type="file" name="file_before" accept=".xlsx,.xls">
+        <input id="fileInputAfter" type="file" name="file_after" accept=".xlsx,.xls" multiple>
+        <div class="form-row" style="margin-top:1.5em;"><button class="btn" type="submit">시뮬레이션</button></div>
+        <div id="comparison-filenames" style="display: none;"></div>
+    </form>
+    
+    {% if result and result.debug_reports %}
+    <div class="debug-reports-area">
+        <h2>디버그 리포트</h2>
+        {% if result.err %}
+            <p class="error-summary">{{ result.err }}</p>
+        {% endif %}
+
+        {# 1. 심각(SEVERE) 오류 섹션 #}
+        {% set severe_reports = result.debug_reports | selectattr('severe_html') | list %}
+        {% if severe_reports %}
+            <h3>⛔ 심각 (SEVERE)</h3>
+            <div class="report-box report-severe">
+                {% for report in severe_reports %}
+                    <div class="report-item">
+                        <h4>파일: {{ report.filename }}</h4>
+                        {{ report.severe_html | safe }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# 2. 경고(WARNING) 섹션 #}
+        {% set warning_reports = result.debug_reports | selectattr('warning_html') | list %}
+        {% if warning_reports %}
+            <h3 style="margin-top: 1.5em;">⚠️ 경고 (WARNING)</h3>
+            <div class="report-box report-warning">
+                {% for report in warning_reports %}
+                    <div class="report-item">
+                        <h4>파일: {{ report.filename }}</h4>
+                        {{ report.warning_html | safe }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if result and result.sim_data %}
+    <div class="form-row" style="margin-top: 2em;">
+        <label for="dataTypeSelector" style="font-weight: bold; color: #333; background: none;">월별 그래프 데이터 선택:</label>
+        <select id="dataTypeSelector">
+            <option value="site_uses" selected>에너지소요량</option>
+            <option value="source_uses">1차에너지소요량</option>
+            <option value="co2">CO2 배출량</option>
+            <option value="cost">에너지 요금</option>
+        </select>
+    </div>
+
+    <div class="graphs-area">
+        <div class="graph-container"><div id="legend-heating" class="custom-legend"></div><canvas id="bar-heating"></canvas><div id="title-heating" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-cooling" class="custom-legend"></div><canvas id="bar-cooling"></canvas><div id="title-cooling" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-lighting" class="custom-legend"></div><canvas id="bar-lighting"></canvas><div id="title-lighting" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-circulation" class="custom-legend"></div><canvas id="bar-circulation"></canvas><div id="title-circulation" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-hotwater" class="custom-legend"></div><canvas id="bar-hotwater"></canvas><div id="title-hotwater" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-generators" class="custom-legend"></div><canvas id="bar-generators"></canvas><div id="title-generators" class="graph-title"></div></div>
+        
+        <div class="graph-container split-container">
+            <div class="inner-chart">
+                <canvas id="bar-annual-by-purpose"></canvas>
+                <div id="title-annual-by-purpose" class="graph-title"></div>
+            </div>
+            <div class="inner-chart">
+                <canvas id="line-total"></canvas>
+                <div id="title-total" class="graph-title"></div>
+            </div>
+        </div>
+
+        <div class="graph-container summary-comparison-graph">
+            <div class="graph-title">연간 주요 성능 지표 비교</div>
+            <div id="annualSummaryContainer"></div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <script>
+    // --- UI 스크립트 ---
+    document.getElementById('fileInputBefore').addEventListener('change', function() {
+        const box = document.getElementById('filenameBoxBefore');
+        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다.';
+    });
+    document.getElementById('fileInputAfter').addEventListener('change', function() {
+        const box = document.getElementById('filenameBoxAfter');
+        if (this.files && this.files.length > 0) {
+            box.textContent = Array.from(this.files).map(f => f.name).join(', ');
+        } else {
+            box.textContent = '파일이 선택되지 않았습니다. (선택사항)';
+        }
+    });
+    </script>
+
+    <script>
+    // --- 차트 관련 전역 변수 및 설정 ---
+    let chartInstances = {};
+    const graphOrder = [ { key: "heating", name: "난방" }, { key: "cooling", name: "냉방" }, { key: "lighting", name: "조명" }, { key: "circulation", name: "팬/펌프/전열" }, { key: "hotwater", name: "급탕" }, { key: "generators", name: "발전량" } ];
+    const energyTypes = [ { key: "ELECTRICITY", label: "전기", color: "rgba(72,190,141,1)", light_color: "rgba(137,220,181,1)" }, { key: "NATURALGAS", label: "가스", color: "rgba(195, 24, 24, 1)", light_color: "rgba(227,124,124,1)" }, { key: "OIL", label: "유류", color: "rgba(242,176,77, 1)", light_color: "rgba(247,208,148,1)" }, { key: "DISTRICTHEATING", label: "지역난방", color: "rgba(186, 28, 162, 1)", light_color: "rgba(218,126,201,1)" } ];
+    const dataTypeLabels = { 'site_uses': { name: '에너지소요량', unit: '[kWh/m²]' }, 'source_uses': { name: '1차에너지소요량', unit: '[kWh/m²]' }, 'co2': { name: 'CO2 배출량', unit: '[kgCO₂/m²]' }, 'cost': { name: '에너지 요금', unit: '[원/m²]' }};
+    const monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+    // --- 커스텀 범례 생성 함수 ---
+    function generateCustomLegend(chart, container) {
+        const uniqueLabels = {};
+        chart.data.datasets.forEach((dataset, i) => {
+            const baseLabel = dataset.label.replace(/ \((전|후\s*\d*)\)$/, '').trim();
+            if (!uniqueLabels[baseLabel]) {
+                uniqueLabels[baseLabel] = {
+                    label: baseLabel,
+                    backgroundColor: dataset.stack === 'Before' ? dataset.backgroundColor : energyTypes.find(e => e.label === baseLabel)?.light_color || '#ccc',
+                    datasetIndices: [i]
+                };
+            } else {
+                uniqueLabels[baseLabel].datasetIndices.push(i);
+            }
+        });
+        
+        const legendItems = Object.values(uniqueLabels).map(item => {
+            const isHidden = item.datasetIndices.every(idx => !chart.isDatasetVisible(idx));
+            return `<div class="legend-item ${isHidden ? 'legend-item-hidden' : ''}" data-dataset-indices="${JSON.stringify(item.datasetIndices)}"><span class="legend-color-box" style="background-color: ${item.backgroundColor}"></span><span>${item.label}</span></div>`;
+        }).join('');
+
+        container.innerHTML = legendItems;
+        container.querySelectorAll('.legend-item').forEach(item => {
+            item.onclick = () => {
+                const datasetIndices = JSON.parse(item.dataset.datasetIndices);
+                const isCurrentlyVisible = chart.isDatasetVisible(datasetIndices[0]);
+                datasetIndices.forEach(idx => {
+                    chart.setDatasetVisibility(idx, !isCurrentlyVisible);
+                });
+                chart.update();
+                generateCustomLegend(chart, container);
+            };
+        });
+    }
+
+    // --- '후' 케이스 번호 표시용 플러그인 ---
+    const caseNumberPlugin = {
+        id: 'caseNumber',
+        afterDatasetsDraw(chart, args, options) {
+            const { ctx, chartArea: { bottom }, scales: { x } } = chart;
+            ctx.save();
+            ctx.font = 'bold 9px sans-serif';
+            ctx.fillStyle = '#555';
+            ctx.textAlign = 'center';
+
+            chart.data.datasets.forEach((dataset, i) => {
+                if (dataset.stack && dataset.stack.startsWith('After_') && chart.isDatasetVisible(i)) {
+                    const caseIndex = parseInt(dataset.stack.split('_')[1], 10);
+                    const meta = chart.getDatasetMeta(i);
+                    meta.data.forEach((bar, index) => {
+                        if (dataset.label.includes("전기")) { 
+                            ctx.fillText((caseIndex + 1).toString(), bar.x, bottom + 6);
+                        }
+                    });
+                }
+            });
+            ctx.restore();
+        }
+    };
+    
+    // --- 차트 그리기 함수들 (이하 동일) ---
+    function drawGroupedStackedBar(canvasId, legendContainerId, dataBefore, dataAfters, yAxisLabel) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const legendContainer = document.getElementById(legendContainerId);
+        if (!dataBefore || !dataAfters || dataAfters.length === 0) {
+            if(legendContainer) legendContainer.innerHTML = '';
+            return;
+        }
+
+        const datasets = [];
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ' (전)', data: dataBefore[et.key] || new Array(12).fill(0), backgroundColor: et.color, stack: 'Before' });
+        });
+        dataAfters.forEach((dataAfter, index) => {
+            energyTypes.forEach(et => {
+                datasets.push({ label: et.label + ` (후 ${index+1})`, data: dataAfter[et.key] || new Array(12).fill(0), backgroundColor: et.light_color, stack: `After_${index}` });
+            });
+        });
+
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            plugins: [caseNumberPlugin],
+            data: { labels: monthLabels, datasets: datasets },
+            options: {
+                plugins: { legend: { display: false } },
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: { ticks: { font: { size: 10 } } },
+                    y: { stacked: true, beginAtZero: true, title: { display: true, text: yAxisLabel }, suggestedMax: 5 }
+                },
+                layout: { padding: { bottom: 15 } }
+            }
+        });
+        chartInstances[canvasId] = chart;
+        generateCustomLegend(chart, legendContainer);
+    }
+    
+    function drawAnnualByPurposeChart(canvasId, data, yAxisLabel) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (!data) return;
+
+        const datasets = [];
+        
+        // 1. '전' 데이터셋 추가
+        energyTypes.forEach(et => {
+            datasets.push({ 
+                label: et.label, // 범례에서 '(전)' 문구 제거하여 깔끔하게 표시
+                data: data.before[et.key], 
+                backgroundColor: et.color, 
+                stack: 'Before' 
+            });
+        });
+
+        // 2. '후' 데이터셋 추가 (색상은 light_color로 통일)
+        data.afters.forEach((dataAfter, index) => {
+            energyTypes.forEach(et => {
+                datasets.push({ 
+                    label: et.label, // 범례 중복 방지를 위해 라벨 동일하게 유지
+                    data: dataAfter[et.key], 
+                    backgroundColor: et.light_color, 
+                    stack: `After_${index}` 
+                });
+            });
+        });
+
+        const chartLabels = graphOrder.map(g => g.name);
+
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            // 케이스 번호를 막대 하단에 그리는 플러그인 적용
+            plugins: [{
+                id: 'annualCaseNumber',
+                afterDatasetsDraw(chart) {
+                    const { ctx, chartArea: { bottom } } = chart;
+                    ctx.save();
+                    ctx.font = 'bold 10px sans-serif';
+                    ctx.fillStyle = '#666';
+                    ctx.textAlign = 'center';
+
+                    // 각 스택 그룹의 X 위치를 찾아서 번호 표시
+                    const metas = chart.getSortedVisibleDatasetMetas();
+                    const stacks = {};
+                    
+                    metas.forEach(meta => {
+                        if (meta.stack && meta.stack.startsWith('After_')) {
+                            const caseIdx = parseInt(meta.stack.split('_')[1], 10) + 1;
+                            if (!stacks[meta.stack]) {
+                                // 각 카테고리(X축)별로 해당 스택의 번호를 하단에 표시
+                                meta.data.forEach(bar => {
+                                    ctx.fillText(caseIdx.toString(), bar.x, bottom + 6);
+                                });
+                                stacks[meta.stack] = true;
+                            }
+                        }
+                    });
+                    ctx.restore();
+                }
+            }],
+            data: { labels: chartLabels, datasets: datasets },
+            options: {
+                plugins: { 
+                    legend: { 
+                        position: 'top', 
+                        labels: { 
+                            font: { size: 10 },
+                            // 범례 중복 제거: 에너지원(전기, 가스 등)별로 하나씩만 표시
+                            filter: function(item, chartData) {
+                                const labels = chartData.datasets.map(ds => ds.label);
+                                return labels.indexOf(item.text) === item.datasetIndex;
+                            }
+                        } 
+                    } 
+                },
+                responsive: true, 
+                maintainAspectRatio: false,
+                scales: { 
+                    x: {
+                        // 번호가 들어갈 공간 확보를 위해 패딩 추가
+                        afterFit: (scale) => { scale.height += 15; }
+                    },
+                    y: { 
+                        stacked: true, 
+                        beginAtZero: true, 
+                        title: { display: true, text: yAxisLabel }, 
+                        grace: '10%' 
+                    } 
+                },
+                layout: { padding: { bottom: 10 } }
+            }
+        });
+    }
+
+    function drawDualLineChart(canvasId, valuesBefore, valuesAfters, yAxisLabel, baseName) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (!valuesBefore || !valuesAfters || valuesAfters.length === 0) return;
+
+        const pointStyles = ['circle', 'triangle', 'rect', 'star', 'diamond', 'crossRot'];
+
+        function getAfterColor(index, total) {
+            if (total <= 1) return '#377be7';
+            const hue = 215; 
+            const saturation = 70;
+            const lightness = 70 - (index * (40 / (total - 1 || 1))); 
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        const datasets = [{ 
+            label: `전`, // "리모델링 전 1차에너지소요량" -> "전"으로 간소화
+            data: valuesBefore, 
+            borderColor: '#e76537', 
+            backgroundColor: 'rgba(230, 101, 55, 0.1)', 
+            tension: 0.15, 
+            fill: true,
+            pointStyle: 'circle',
+            pointRadius: 4,
+            borderWidth: 3,
+            zIndex: 10
+        }];
+
+        valuesAfters.forEach((valuesAfter, index) => {
+            const color = getAfterColor(index, valuesAfters.length);
+            datasets.push({
+                label: `후 ${index + 1}`, // "리모델링 후 1 1차에너지소요량" -> "후 1"로 간소화
+                data: valuesAfter,
+                borderColor: color,
+                backgroundColor: 'transparent',
+                tension: 0.15, 
+                fill: false,
+                borderDash: [], 
+                pointStyle: pointStyles[index % pointStyles.length], 
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                borderWidth: 1.5
+            });
+        });
+
+        chartInstances[canvasId] = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels: monthLabels, datasets: datasets }, 
+            options: { 
+                responsive: true, 
+                maintainAspectRatio: false, 
+                plugins: { 
+                    legend: { 
+                        position: 'top', // 범례를 그래프 위로 이동
+                        align: 'center',
+                        labels: { 
+                            usePointStyle: true,
+                            boxWidth: 8,
+                            padding: 15, // 범례 아이템 간 간격
+                            font: { size: 12 }
+                        }
+                    },
+                    tooltip: {
+                        mode: 'index',
+                        intersect: false,
+                        // 툴팁에는 어떤 에너지원인지 제목(baseName)을 표시해주면 좋습니다.
+                        callbacks: {
+                            title: function() {
+                                return baseName; 
+                            }
+                        }
+                    }
+                }, 
+                scales: { 
+                    y: { 
+                        beginAtZero: true, 
+                        title: { display: true, text: yAxisLabel } 
+                    } 
+                } 
+            } 
+        });
+    }
+    
+    function calculateAnnualData(allData, dataType) {
+        const result = {
+            before: {},
+            afters: []
+        };
+        energyTypes.forEach(et => result.before[et.key] = []);
+        graphOrder.forEach(itemInfo => {
+            energyTypes.forEach(et => {
+                const sumBefore = (allData.before[dataType]?.[itemInfo.key]?.[et.key] || []).reduce((s, v) => s + v, 0);
+                result.before[et.key].push(sumBefore);
+            });
+        });
+        
+        allData.afters.forEach(dataAfter => {
+            const afterResult = {};
+            energyTypes.forEach(et => afterResult[et.key] = []);
+            graphOrder.forEach(itemInfo => {
+                energyTypes.forEach(et => {
+                    const sumAfter = (dataAfter[dataType]?.[itemInfo.key]?.[et.key] || []).reduce((s, v) => s + v, 0);
+                    afterResult[et.key].push(sumAfter);
+                });
+            });
+            result.afters.push(afterResult);
+        });
+        return result;
+    }
+
+    // --- 메인 로직: 차트 업데이트 함수 ---
+    function updateCharts(dataType) {
+        {% if result and result.sim_data %}
+            const allData = {{ result.sim_data | tojson }};
+            const labels = dataTypeLabels[dataType];
+            if (!labels) return;
+            
+            graphOrder.forEach(itemInfo => {
+                const dataAfters = allData.afters.map(d => d[dataType]?.[itemInfo.key]);
+                document.getElementById(`title-${itemInfo.key}`).textContent = `${itemInfo.name} 월별 ${labels.name} 비교 ${labels.unit}`;
+                drawGroupedStackedBar(`bar-${itemInfo.key}`, `legend-${itemInfo.key}`, allData.before[dataType]?.[itemInfo.key], dataAfters, labels.unit);
+            });
+            
+            const annualData = calculateAnnualData(allData, dataType);
+            document.getElementById('title-annual-by-purpose').textContent = `용도별 연간 ${labels.name} 비교 ${labels.unit}`;
+            drawAnnualByPurposeChart('bar-annual-by-purpose', annualData, labels.unit);
+
+            const lineLabelBase = `월별 총 ${labels.name}`;
+            const valuesAfters = allData.afters.map(d => d.summary_per_area[dataType]?.total_monthly);
+            document.getElementById('title-total').textContent = `${lineLabelBase} 비교 ${labels.unit}`;
+            drawDualLineChart('line-total', allData.before.summary_per_area[dataType]?.total_monthly, valuesAfters, labels.unit, `총 ${labels.name}`);
+        {% endif %}
+    }
+
+    // --- 연간 성능 요약 테이블 생성 함수 ---
+    function drawAnnualSummary(dataBefore, dataAfters, filenamesAfter) {
+        const container = document.getElementById('annualSummaryContainer');
+        container.innerHTML = ''; 
+        const summaryMetrics = [ 
+            { key: 'site_uses', name: '에너지소요량', unit_per_area: 'kWh/m²', unit_gross: 'MWh' }, 
+            { key: 'source_uses', name: '1차에너지소요량', unit_per_area: 'kWh/m²', unit_gross: 'MWh' }, 
+            { key: 'co2', name: 'CO2 배출량', unit_per_area: 'kgCO₂/m²', unit_gross: 'tCO₂' }, 
+            { key: 'cost', name: '에너지 요금', unit_per_area: '원/m²', unit_gross: '천 원' }, 
+        ];
+
+        let tableHtml = '<table class="summary-table">';
+        
+        summaryMetrics.forEach(metric => {
+            tableHtml += `<thead><tr><th colspan="5" class="metric-title">${metric.name}</th></tr>`;
+            tableHtml += `<tr><th>구분</th><th>면적당 [${metric.unit_per_area}]</th><th>변화율</th><th>총량 [${metric.unit_gross}]</th><th>변화율</th></tr></thead><tbody>`;
+
+            const valPerAreaBefore = dataBefore.summary_per_area[metric.key]?.total_annual || 0;
+            const valGrossBefore = (dataBefore.summary_gross[metric.key]?.total_annual || 0) / 1000;
+            tableHtml += `<tr><td class="case-label">Before</td><td>${valPerAreaBefore.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>-</td><td>${valGrossBefore.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>-</td></tr>`;
+            
+            dataAfters.forEach((dataAfter, index) => {
+                const valPerAreaAfter = dataAfter.summary_per_area[metric.key]?.total_annual || 0;
+                const valGrossAfter = (dataAfter.summary_gross[metric.key]?.total_annual || 0) / 1000;
+                
+                let changeHtmlPerArea = '-';
+                if (valPerAreaBefore > 0) {
+                    const change = ((valPerAreaAfter - valPerAreaBefore) / valPerAreaBefore * 100);
+                    const isDown = change < 0;
+                    changeHtmlPerArea = `<span class="${isDown ? 'summary-down' : 'summary-up'}">${isDown ? '▼' : '▲'} ${Math.abs(change).toFixed(1)}%</span>`;
+                }
+                
+                let changeHtmlGross = '-';
+                if (valGrossBefore > 0) {
+                    const change = ((valGrossAfter - valGrossBefore) / valGrossBefore * 100);
+                    const isDown = change < 0;
+                    changeHtmlGross = `<span class="${isDown ? 'summary-down' : 'summary-up'}">${isDown ? '▼' : '▲'} ${Math.abs(change).toFixed(1)}%</span>`;
+                }
+
+                tableHtml += `<tr><td class="case-label">After ${index + 1}</td><td>${valPerAreaAfter.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>${changeHtmlPerArea}</td><td>${valGrossAfter.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>${changeHtmlGross}</td></tr>`;
+            });
+            tableHtml += `</tbody>`;
+        });
+        tableHtml += '</table>';
+        container.innerHTML = tableHtml;
+    }
+
+     // --- 페이지 로드 시 실행 ---
+     window.addEventListener('DOMContentLoaded', function() {
+        {% if result and result.sim_data %}
+            const allData = {{ result.sim_data | tojson }};
+
+            const fnContainer = document.getElementById('comparison-filenames');
+            if(allData.filename_before && allData.filenames_after) {
+                let filesHtml = `<strong>비교 대상:</strong> [전] ${allData.filename_before}`;
+                if (allData.filenames_after.length > 0) {
+                    filesHtml += '<br><strong>리모델링 후 옵션:</strong><ol>';
+                    allData.filenames_after.forEach((name, i) => {
+                        filesHtml += `<li><strong>(${i + 1})</strong>: ${name}</li>`;
+                    });
+                    filesHtml += '</ol>';
+                }
+                fnContainer.innerHTML = filesHtml;
+                fnContainer.style.display = 'block';
+            }
+
+            const selector = document.getElementById('dataTypeSelector');
+            updateCharts(selector.value);
+            selector.addEventListener('change', e => updateCharts(e.target.value));
+            drawAnnualSummary(allData.before, allData.afters, allData.filenames_after);
+        {% endif %}
+
+        {% if result and result.csv_data %}
+            const csvData = {{ result.csv_data | tojson }};
+            const downloadBtn = document.getElementById('downloadCsvBtn');
+
+            if (downloadBtn && csvData) {
+                downloadBtn.addEventListener('click', function(e) {
+                    e.preventDefault(); // a 태그의 기본 동작 방지
+
+                    const blob = new Blob([csvData], { type: 'text/csv;charset=utf-8-sig;' });
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+
+                    link.setAttribute('href', url);
+                    link.setAttribute('download', 'debug_report.csv');
+                    link.style.visibility = 'hidden';
+
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                });
+            }
+        {% endif %}
+    });
+    </script>
+</body>
+</html>

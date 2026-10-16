@@ -189,6 +189,24 @@ $WeatherReleaseApiUrl = 'https://api.github.com/repos/snu-bslab/EPlusSimple-reso
 $WeatherAssetNamePattern = '(?i)(korean|korea).*tmy.*\.zip$|tmy.*(korean|korea).*\.zip$'
 
 # ============================================================================
+# [3b] Korean AMY weather data configuration (REB)
+# ============================================================================
+# The REB module simulates GR-before / GR-after / N-year cases with actual
+# meteorological year (AMY) files named {station}_{year}.epw. They are
+# downloaded from the same resources repository and extracted into:
+#
+# runtime/Weather/AMY
+# ============================================================================
+
+$WeatherAmyDir = Join-Path $WeatherRootDir 'AMY'
+$WeatherAmyExtractDir = Join-Path $RuntimeDir '_weather_amy_extract'
+$WeatherAmyZipPath = Join-Path $DownloadDir 'Korean_AMY.zip'
+
+$WeatherAmyReleaseApiUrl = 'https://api.github.com/repos/snu-bslab/EPlusSimple-resources/releases/tags/weather%2Famy-v1'
+
+$WeatherAmyAssetNamePattern = '(?i)(korean|korea).*amy.*\.zip$|amy.*(korean|korea).*\.zip$'
+
+# ============================================================================
 # [4] Go portable SDK configuration
 # ============================================================================
 # Use the official Windows amd64 zip archive instead of the MSI installer.
@@ -683,6 +701,73 @@ function Initialize-WeatherRuntime {
     Write-Host " ...Korean TMY weather data setup complete. File count: $weatherFileCount"
 }
 
+function Initialize-AmyWeatherRuntime {
+    Write-Step '[5b/6] Checking Korean AMY weather data (REB)...'
+
+    if ($SkipWeather) {
+        Write-Host ' ...SkipWeather enabled. Skipping Korean AMY weather data setup.'
+        return
+    }
+
+    if ($Force -and (Test-Path -LiteralPath $WeatherAmyDir)) {
+        Write-Host " ...Force enabled. Removing existing weather data directory: $WeatherAmyDir"
+        Remove-DirectoryIfExists $WeatherAmyDir
+    }
+
+    if (Test-DirectoryHasFiles -Path $WeatherAmyDir) {
+        Write-Host " ...Found existing weather data: $WeatherAmyDir"
+        return
+    }
+
+    New-DirectoryIfMissing $WeatherRootDir
+    New-DirectoryIfMissing $WeatherAmyDir
+
+    $asset = Get-GitHubReleaseAsset `
+        -ReleaseApiUrl $WeatherAmyReleaseApiUrl `
+        -NamePattern $WeatherAmyAssetNamePattern
+
+    if (Test-Path -LiteralPath $WeatherAmyZipPath) {
+        Write-Host " ...Using cached weather archive: $WeatherAmyZipPath"
+    } else {
+        Save-RemoteFileIfMissing -Url $asset.browser_download_url -Destination $WeatherAmyZipPath
+    }
+
+    Expand-ZipClean -ZipPath $WeatherAmyZipPath -Destination $WeatherAmyExtractDir
+
+    Remove-DirectoryIfExists $WeatherAmyDir
+    New-DirectoryIfMissing $WeatherAmyDir
+
+    $topLevelItems = @(Get-ChildItem -LiteralPath $WeatherAmyExtractDir -Force)
+
+    if ($topLevelItems.Count -eq 1 -and $topLevelItems[0].PSIsContainer) {
+        $sourceDir = $topLevelItems[0].FullName
+    } else {
+        $sourceDir = $WeatherAmyExtractDir
+    }
+
+    Write-Host ' ...Copying Korean AMY weather files to:'
+    Write-Host "    $WeatherAmyDir"
+
+    Copy-DirectoryContents -Source $sourceDir -Destination $WeatherAmyDir
+
+    if (-not $KeepExtractedWeather) {
+        Remove-DirectoryIfExists $WeatherAmyExtractDir
+    } else {
+        Write-Host " ...Keeping extracted weather directory for debugging: $WeatherAmyExtractDir"
+    }
+
+    if (-not (Test-DirectoryHasFiles -Path $WeatherAmyDir)) {
+        throw "Weather data setup completed but no files were found in: $WeatherAmyDir"
+    }
+
+    $weatherFileCount = @(
+        Get-ChildItem -LiteralPath $WeatherAmyDir -Recurse -ErrorAction Stop |
+            Where-Object { -not $_.PSIsContainer }
+    ).Count
+
+    Write-Host " ...Korean AMY weather data setup complete. File count: $weatherFileCount"
+}
+
 function Initialize-GoRuntime {
     Write-Step '[6/6] Checking Go portable SDK...'
 
@@ -814,6 +899,7 @@ try {
     Write-Host "Requirements : $RequirementsPath"
     Write-Host "Runtime      : $RuntimeDir"
     Write-Host "Weather TMY  : $WeatherTmyDir"
+    Write-Host "Weather AMY  : $WeatherAmyDir"
     Write-Host ''
 
     New-DirectoryIfMissing $RuntimeDir
@@ -824,6 +910,7 @@ try {
     Initialize-PipAndPackages
     Initialize-EnergyPlusRuntime
     Initialize-WeatherRuntime
+    Initialize-AmyWeatherRuntime
     Initialize-GoRuntime
     Clear-DownloadsAfterSuccess
 
@@ -835,6 +922,7 @@ try {
     Write-Host "Python       : $PythonExe"
     Write-Host "EnergyPlus   : $EnergyPlusExe"
     Write-Host "Weather TMY  : $WeatherTmyDir"
+    Write-Host "Weather AMY  : $WeatherAmyDir"
 
     if (-not $SkipGo) {
         Write-Host "Go           : $GoExe"
@@ -854,6 +942,9 @@ try {
     Write-Host ''
     Write-Host 'To check Korean TMY weather files:'
     Write-Host "  dir `"$WeatherTmyDir`""
+    Write-Host ''
+    Write-Host 'To check Korean AMY weather files (REB):'
+    Write-Host "  dir `"$WeatherAmyDir`""
     Write-Host ''
 
     exit 0

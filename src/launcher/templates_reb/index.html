@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>GR 정성평가 3단계 시뮬레이션</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>GR 정성평가 3단계 시뮬레이션</h1>
+    <form id="uploadForm" enctype="multipart/form-data" method="POST" autocomplete="off">
+        <div class="form-row">
+            <label for="fileInputBefore" class="file-label">1: GR 이전 파일 선택</label>
+            <div class="filename-box" id="filenameBoxBefore">파일이 선택되지 않았습니다.</div>
+        </div>
+        <div class="form-row">
+            <label for="fileInputAfter" class="file-label" style="background-color: #5b8cde;">2: GR 이후 파일 선택</label>
+            <div class="filename-box" id="filenameBoxAfter">파일이 선택되지 않았습니다. (선택하지 않으면 리모델링 전만 실행)</div>
+        </div>
+        <div class="form-row">
+            <label for="fileInputAfterN" class="file-label" style="background-color: #5b8cde;">3: GR 이후 (운영특성 반영) 파일 선택</label>
+            <div class="filename-box" id="filenameBoxAfterN">파일이 선택되지 않았습니다. (선택하지 않으면 리모델링 전만 실행)</div>
+        </div>
+        <input id="fileInputBefore" type="file" name="file_before" accept=".xlsx,.xls">
+        <input id="fileInputAfter" type="file" name="file_after" accept=".xlsx,.xls">
+        <input id="fileInputAfterN" type="file" name="file_afterN" accept=".xlsx,.xls">
+
+        <div class="form-row" style="margin-top:1.5em;"><button class="btn" type="submit">시뮬레이션</button></div>
+        <div id="comparison-filenames" style="display: none;"></div>
+    </form>
+    
+    {% if result and result.debug_reports %}
+    <div class="debug-reports-area">
+        <h2>디버그 리포트</h2>
+        {% if result.err %}
+            <p class="error-summary">{{ result.err }}</p>
+        {% endif %}
+
+        {# 1. 심각(SEVERE) 오류 섹션 #}
+        {% set severe_reports = result.debug_reports | selectattr('severe_html') | list %}
+        {% if severe_reports %}
+            <h3>⛔ 심각 (SEVERE)</h3>
+            <div class="report-box report-severe">
+                {% for report in severe_reports %}
+                    <div class="report-item">
+                        <h4>파일: {{ report.filename }}</h4>
+                        {{ report.severe_html | safe }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {# 2. 경고(WARNING) 섹션 #}
+        {% set warning_reports = result.debug_reports | selectattr('warning_html') | list %}
+        {% if warning_reports %}
+            <h3 style="margin-top: 1.5em;">⚠️ 경고 (WARNING)</h3>
+            <div class="report-box report-warning">
+                {% for report in warning_reports %}
+                    <div class="report-item">
+                        <h4>파일: {{ report.filename }}</h4>
+                        {{ report.warning_html | safe }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if result and result.sim_data %}
+    <div class="form-row" style="margin-top: 2em;">
+        <label for="dataTypeSelector" style="font-weight: bold; color: #333; background: none;">월별 그래프 데이터 선택:</label>
+        <select id="dataTypeSelector">
+            <option value="site_uses" selected>에너지소요량</option>
+            <option value="source_uses">1차에너지소요량</option>
+            <option value="co2">CO2 배출량</option>
+            <option value="cost">에너지 요금</option>
+        </select>
+    </div>
+
+    <div class="graphs-area">
+        <div class="graph-container"><div id="legend-heating" class="custom-legend"></div><canvas id="bar-heating"></canvas><div id="title-heating" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-cooling" class="custom-legend"></div><canvas id="bar-cooling"></canvas><div id="title-cooling" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-lighting" class="custom-legend"></div><canvas id="bar-lighting"></canvas><div id="title-lighting" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-circulation" class="custom-legend"></div><canvas id="bar-circulation"></canvas><div id="title-circulation" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-hotwater" class="custom-legend"></div><canvas id="bar-hotwater"></canvas><div id="title-hotwater" class="graph-title"></div></div>
+        <div class="graph-container"><div id="legend-generators" class="custom-legend"></div><canvas id="bar-generators"></canvas><div id="title-generators" class="graph-title"></div></div>
+        
+        <div class="graph-container split-container">
+            <div class="inner-chart">
+                <canvas id="bar-annual-by-purpose"></canvas>
+                <div id="title-annual-by-purpose" class="graph-title"></div>
+            </div>
+            <div class="inner-chart">
+                <canvas id="line-total"></canvas>
+                <div id="title-total" class="graph-title"></div>
+            </div>
+        </div>
+
+        <div class="graph-container summary-comparison-graph">
+            <div class="graph-title">연간 주요 성능 지표 비교</div>
+            <div id="annualSummaryContainer"></div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <script>
+    // --- UI 스크립트 ---
+    document.getElementById('fileInputBefore').addEventListener('change', function() {
+        const box = document.getElementById('filenameBoxBefore');
+        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다.';
+    });
+    document.getElementById('fileInputAfter').addEventListener('change', function() {
+        const box = document.getElementById('filenameBoxAfter');
+        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다. (선택사항)';
+    });
+    document.getElementById('fileInputAfterN').addEventListener('change', function() {
+        const box = document.getElementById('filenameBoxAfterN');
+        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다. (선택사항)';
+    });
+    // --- 차트 관련 전역 변수 및 설정 ---
+    let chartInstances = {};
+    const graphOrder = [ { key: "heating", name: "난방" }, { key: "cooling", name: "냉방" }, { key: "lighting", name: "조명" }, { key: "circulation", name: "팬/펌프/전열" }, { key: "hotwater", name: "급탕" }, { key: "generators", name: "발전량" } ];
+    const energyTypes = [ { key: "ELECTRICITY", label: "전기", color: "rgba(72,190,141,1)", light_color: "rgba(137,220,181,1)" }, { key: "NATURALGAS", label: "가스", color: "rgba(195, 24, 24, 1)", light_color: "rgba(227,124,124,1)" }, { key: "OIL", label: "유류", color: "rgba(242,176,77, 1)", light_color: "rgba(247,208,148,1)" }, { key: "DISTRICTHEATING", label: "지역난방", color: "rgba(186, 28, 162, 1)", light_color: "rgba(218,126,201,1)" } ];
+    const dataTypeLabels = { 'site_uses': { name: '에너지소요량', unit: '[kWh/m²]' }, 'source_uses': { name: '1차에너지소요량', unit: '[kWh/m²]' }, 'co2': { name: 'CO2 배출량', unit: '[kgCO₂/m²]' }, 'cost': { name: '에너지 요금', unit: '[원/m²]' }};
+    const monthLabels = ['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+
+    // --- 커스텀 범례 생성 함수 ---
+    function generateCustomLegend(chart, container) {
+        const uniqueLabels = {};
+        chart.data.datasets.forEach((dataset, i) => {
+            const baseLabel = dataset.label.replace(/ \((전|후\s*\d*)\)$/, '').trim();
+            if (!uniqueLabels[baseLabel]) {
+                uniqueLabels[baseLabel] = {
+                    label: baseLabel,
+                    backgroundColor: dataset.stack === 'Before' ? dataset.backgroundColor : energyTypes.find(e => e.label === baseLabel)?.light_color || '#ccc',
+                    datasetIndices: [i]
+                };
+            } else {
+                uniqueLabels[baseLabel].datasetIndices.push(i);
+            }
+        });
+        
+        const legendItems = Object.values(uniqueLabels).map(item => {
+            const isHidden = item.datasetIndices.every(idx => !chart.isDatasetVisible(idx));
+            return `<div class="legend-item ${isHidden ? 'legend-item-hidden' : ''}" data-dataset-indices="${JSON.stringify(item.datasetIndices)}"><span class="legend-color-box" style="background-color: ${item.backgroundColor}"></span><span>${item.label}</span></div>`;
+        }).join('');
+
+        container.innerHTML = legendItems;
+        container.querySelectorAll('.legend-item').forEach(item => {
+            item.onclick = () => {
+                const datasetIndices = JSON.parse(item.dataset.datasetIndices);
+                const isCurrentlyVisible = chart.isDatasetVisible(datasetIndices[0]);
+                datasetIndices.forEach(idx => {
+                    chart.setDatasetVisibility(idx, !isCurrentlyVisible);
+                });
+                chart.update();
+                generateCustomLegend(chart, container);
+            };
+        });
+    }
+    
+    // --- 차트 그리기 함수들 (이하 동일) ---
+    function drawGroupedStackedBar(canvasId, legendContainerId, dataBefore, dataAfter, dataAfterN, yAxisLabel) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        const legendContainer = document.getElementById(legendContainerId);
+        if (!dataBefore || !dataAfter || !dataAfterN) { 
+            if(legendContainer) legendContainer.innerHTML = '';
+            return;
+        }
+
+        const datasets = [];
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ' (전)', data: dataBefore[et.key] || new Array(12).fill(0), backgroundColor: et.color, stack: 'Before' });
+        });
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ` (후)`, data: dataAfter[et.key] || new Array(12).fill(0), backgroundColor: et.light_color, stack: `After` });
+        });
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ` (N)`, data: dataAfterN[et.key] || new Array(12).fill(0), backgroundColor: et.light_color, stack: `AfterN` });
+        });
+
+        const chart = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: monthLabels, datasets: datasets },
+            options: {
+                plugins: { legend: { display: false } },
+                responsive: true, maintainAspectRatio: false,
+                scales: { 
+                    x: { ticks: { font: { size: 10 } } },
+                    y: { stacked: true, beginAtZero: true, title: { display: true, text: yAxisLabel }, suggestedMax: 5 }
+                },
+                layout: { padding: { bottom: 15 } }
+            }
+        });
+        chartInstances[canvasId] = chart;
+        generateCustomLegend(chart, legendContainer);
+    }
+    
+    function drawAnnualByPurposeChart(canvasId, data, yAxisLabel) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (!data) return;
+
+        const datasets = [];
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ' (전)', data: data.before[et.key], backgroundColor: et.color, stack: 'GR 이전' });
+        });
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ' (후)', data: data.after[et.key], backgroundColor: et.light_color, stack: 'GR 이후' });
+        });
+        energyTypes.forEach(et => {
+            datasets.push({ label: et.label + ' (N)', data: data.afterN[et.key], backgroundColor: et.light_color, stack: 'GR 이후 (운영특성 반영)' });
+        });
+        
+        const chartLabels = graphOrder.map(g => g.name);
+
+        chartInstances[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: chartLabels, datasets: datasets },
+            options: {
+                plugins: { legend: { position: 'top', labels: { font: { size: 10 } } } },
+                responsive: true, maintainAspectRatio: false,
+                scales: { y: { stacked: true, beginAtZero: true, title: { display: true, text: yAxisLabel }, grace: '10%' } }
+            }
+        });
+    }
+
+    function drawDualLineChart(canvasId, valuesBefore, valuesAfter, valuesAfterN, yAxisLabel, baseName) {
+        if (chartInstances[canvasId]) chartInstances[canvasId].destroy();
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (!valuesBefore || !valuesAfter || !valuesAfterN) return;
+
+        const datasets = [{ 
+            label: `GR 이전 ${baseName}`, data: valuesBefore, 
+            borderColor: '#e76537', backgroundColor: 'rgba(230, 101, 55, 0.08)', 
+            tension: 0.15, fill: true 
+        }];
+        datasets.push({
+            label: `GR 이후 ${baseName}`, data: valuesAfter,
+            borderColor: '#377be7', backgroundColor: 'rgba(55, 123, 231, 0.08)',
+            tension: 0.15, fill: true,
+            borderDash: [], // '후 1'은 실선
+        });
+        datasets.push({
+            label: `GR 이후 (운영특성 반영) ${baseName}`, data: valuesAfterN,
+            borderColor: '#377be7', backgroundColor: 'rgba(55, 123, 231, 0.08)', // '후 1'과 동일한 계열 색상 사용
+            tension: 0.15, fill: true,
+            borderDash: [5, 5], // '후 2' (GR 이후 (운영특성 반영))는 점선으로 구분
+        });
+
+        chartInstances[canvasId] = new Chart(ctx, { 
+            type: 'line', 
+            data: { labels: monthLabels, datasets: datasets }, 
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: yAxisLabel } } } } 
+        });
+    }
+    
+function calculateAnnualData(allData, dataType) {
+        // [수정] 반환 객체 구조 변경 (afters: [] -> after: {}, afterN: {})
+        const result = {
+            before: {},
+            after: {},
+            afterN: {}
+        };
+
+        // 'before', 'after', 'afterN' 객체 초기화
+        energyTypes.forEach(et => {
+            result.before[et.key] = [];
+            result.after[et.key] = [];
+            result.afterN[et.key] = [];
+        });
+
+        // 'before' 계산 (기존과 동일)
+        graphOrder.forEach(itemInfo => {
+            energyTypes.forEach(et => {
+                const sumBefore = (allData.before[dataType]?.[itemInfo.key]?.[et.key] || []).reduce((s, v) => s + v, 0);
+                result.before[et.key].push(sumBefore);
+            });
+        });
+
+        // [추가] 'after' (GR 이후) 계산
+        graphOrder.forEach(itemInfo => {
+            energyTypes.forEach(et => {
+                const sumAfter = (allData.after[dataType]?.[itemInfo.key]?.[et.key] || []).reduce((s, v) => s + v, 0);
+                result.after[et.key].push(sumAfter);
+            });
+        });
+
+        // [추가] 'afterN' (GR 이후 (운영특성 반영)) 계산
+        graphOrder.forEach(itemInfo => {
+            energyTypes.forEach(et => {
+                const sumAfterN = (allData.afterN[dataType]?.[itemInfo.key]?.[et.key] || []).reduce((s, v) => s + v, 0);
+                result.afterN[et.key].push(sumAfterN);
+            });
+        });
+
+        return result;
+    }
+
+    // --- 메인 로직: 차트 업데이트 함수 ---
+    function updateCharts(dataType) {
+        {% if result and result.sim_data %}
+            const allData = {{ result.sim_data | tojson }};
+            const labels = dataTypeLabels[dataType];
+            if (!labels) return;
+            
+            graphOrder.forEach(itemInfo => {
+                const dataAfter  = allData.after[dataType]?.[itemInfo.key];
+                const dataAfterN = allData.afterN[dataType]?.[itemInfo.key];
+                document.getElementById(`title-${itemInfo.key}`).textContent = `${itemInfo.name} 월별 ${labels.name} 비교 ${labels.unit}`;
+                drawGroupedStackedBar(`bar-${itemInfo.key}`, `legend-${itemInfo.key}`, allData.before[dataType]?.[itemInfo.key], dataAfter, dataAfterN, labels.unit);
+            });
+            
+            const annualData = calculateAnnualData(allData, dataType);
+            document.getElementById('title-annual-by-purpose').textContent = `용도별 연간 ${labels.name} 비교 ${labels.unit}`;
+            drawAnnualByPurposeChart('bar-annual-by-purpose', annualData, labels.unit);
+
+            const lineLabelBase = `월별 총 ${labels.name}`;
+            const valuesAfter = allData.after.summary_per_area[dataType]?.total_monthly;
+            const valuesAfterN = allData.afterN.summary_per_area[dataType]?.total_monthly;
+            document.getElementById('title-total').textContent = `${lineLabelBase} 비교 ${labels.unit}`;
+            drawDualLineChart('line-total', allData.before.summary_per_area[dataType]?.total_monthly, valuesAfter, valuesAfterN, labels.unit, `총 ${labels.name}`);
+        {% endif %}
+    }
+    
+// --- 연간 성능 요약 테이블 생성 함수 ---
+    function drawAnnualSummary(dataBefore, dataAfter, dataAfterN) {
+        const container = document.getElementById('annualSummaryContainer');
+        container.innerHTML = ''; 
+        const summaryMetrics = [ 
+            { key: 'site_uses', name: '에너지소요량', unit_per_area: 'kWh/m²', unit_gross: 'MWh' }, 
+            { key: 'source_uses', name: '1차에너지소요량', unit_per_area: 'kWh/m²', unit_gross: 'MWh' }, 
+            { key: 'co2', name: 'CO2 배출량', unit_per_area: 'kgCO₂/m²', unit_gross: 'tCO₂' }, 
+            { key: 'cost', name: '에너지 요금', unit_per_area: '원/m²', unit_gross: '천 원' }, 
+        ];
+
+        // [추가] 변화율 계산을 위한 헬퍼 함수
+        function calculateChangeHtml(beforeVal, afterVal) {
+            if (beforeVal > 0) {
+                const change = ((afterVal - beforeVal) / beforeVal * 100);
+                const isDown = change < 0;
+                return `<span class="${isDown ? 'summary-down' : 'summary-up'}">${isDown ? '▼' : '▲'} ${Math.abs(change).toFixed(1)}%</span>`;
+            }
+            return '-'; // beforeVal이 0이면 변화율 계산 불가
+        }
+
+        let tableHtml = '<table class="summary-table">';
+        
+        summaryMetrics.forEach(metric => {
+            tableHtml += `<thead><tr><th colspan="5" class="metric-title">${metric.name}</th></tr>`;
+            tableHtml += `<tr><th>구분</th><th>면적당 [${metric.unit_per_area}]</th><th>변화율</th><th>총량 [${metric.unit_gross}]</th><th>변화율</th></tr></thead><tbody>`;
+
+            // --- "Before" 행 (기존과 동일) ---
+            const valPerAreaBefore = dataBefore.summary_per_area[metric.key]?.total_annual || 0;
+            const valGrossBefore = (dataBefore.summary_gross[metric.key]?.total_annual || 0) / 1000;
+            tableHtml += `<tr><td class="case-label">[GR 이전]</td><td>${valPerAreaBefore.toLocaleString(undefined, {maximumFractionDigits: 1})}</td><td>-</td><td>${valGrossBefore.toLocaleString(undefined, {maximumFractionDigits: 1})}</td><td>-</td></tr>`;
+            
+            // --- [수정] "After" (GR 이후) 행 ---
+            // dataAfters.forEach 루프를 제거하고 dataAfter 인자를 직접 사용
+            const valPerAreaAfter = dataAfter.summary_per_area[metric.key]?.total_annual || 0;
+            const valGrossAfter = (dataAfter.summary_gross[metric.key]?.total_annual || 0) / 1000;
+            
+            // 헬퍼 함수를 사용하여 변화율 계산 (Before와 비교)
+            const changeHtmlPerAreaAfter = calculateChangeHtml(valPerAreaBefore, valPerAreaAfter);
+            const changeHtmlGrossAfter = calculateChangeHtml(valGrossBefore, valGrossAfter);
+
+            tableHtml += `<tr><td class="case-label">[GR 이후]</td><td>${valPerAreaAfter.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>${changeHtmlPerAreaAfter}</td><td>${valGrossAfter.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>${changeHtmlGrossAfter}</td></tr>`;
+            
+            // --- [추가] "After N" (GR 이후 (운영특성 반영)) 행 ---
+            // dataAfterN 인자를 직접 사용
+            const valPerAreaAfterN = dataAfterN.summary_per_area[metric.key]?.total_annual || 0;
+            const valGrossAfterN = (dataAfterN.summary_gross[metric.key]?.total_annual || 0) / 1000;
+
+            // 헬퍼 함수를 사용하여 변화율 계산 (Before와 비교)
+            const changeHtmlPerAreaAfterN = calculateChangeHtml(valPerAreaBefore, valPerAreaAfterN);
+            const changeHtmlGrossAfterN = calculateChangeHtml(valGrossBefore, valGrossAfterN);
+
+            tableHtml += `<tr><td class="case-label">[GR 이후 (운영특성 반영)]</td><td>${valPerAreaAfterN.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1,})}</td><td>${changeHtmlPerAreaAfterN}</td><td>${valGrossAfterN.toLocaleString(undefined, {maximumFractionDigits: 1, minimumFractionDigits: 1})}</td><td>${changeHtmlGrossAfterN}</td></tr>`;
+
+            tableHtml += `</tbody>`;
+        });
+        tableHtml += '</table>';
+        container.innerHTML = tableHtml;
+    }
+
+     // --- 페이지 로드 시 실행 ---
+     window.addEventListener('DOMContentLoaded', function() {
+        {% if result and result.sim_data %}
+            const allData = {{ result.sim_data | tojson }};
+
+            const fnContainer = document.getElementById('comparison-filenames');
+            // 세 개의 변수가 모두 존재하는지 확인합니다.
+            if(allData.filename_before && allData.filename_after && allData.filename_afterN) {
+                
+                // 세 파일명을 리스트 형태로 표시하도록 HTML을 구성합니다.
+                let filesHtml = '<strong>비교 대상:</strong><ul>'; // <ul> 태그로 리스트 시작
+                filesHtml += `<li><strong>[GR 이전]:</strong> ${allData.filename_before}</li>`;
+                filesHtml += `<li><strong>[GR 이후]:</strong> ${allData.filename_after}</li>`;
+                filesHtml += `<li><strong>[GR 이후 (운영특성 반영)]:</strong> ${allData.filename_afterN}</li>`;
+                filesHtml += '</ul>'; // <ul> 태그 닫기
+                
+                fnContainer.innerHTML = filesHtml;
+                fnContainer.style.display = 'block';
+            }
+
+            const selector = document.getElementById('dataTypeSelector');
+            updateCharts(selector.value);
+            selector.addEventListener('change', e => updateCharts(e.target.value));
+            drawAnnualSummary(allData.before, allData.after, allData.afterN);
+        {% endif %}
+    });
+    </script>
+</body>
+</html>

@@ -115,6 +115,7 @@ Installed locations:
 runtime\PythonV3-12-7
 runtime\EnergyPlusV24-2-0
 runtime\Weather\TMY
+runtime\Weather\AMY
 runtime\GoV1-26-3
 runtime\.go
 ```

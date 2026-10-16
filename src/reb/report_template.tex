@@ -1,0 +1,210 @@
+\documentclass[a4paper,10pt]{article}
+\usepackage[left=1.5cm, right=1.5cm, top=1.5cm, bottom=1.5cm]{geometry}
+
+% ======================
+% 한글 처리 (유일하게 필요한 패키지)
+% ======================
+\usepackage{kotex}   % ✅ UTF-8 + 한글 조합 + 폰트 자동 선택
+\renewcommand{\familydefault}{\sfdefault}
+
+% ======================
+% 일반 설정
+% ======================
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{setspace}
+\usepackage{caption}
+\usepackage{titlesec}
+\usepackage[HTML]{xcolor}
+\usepackage{colortbl}
+\setstretch{1.25}
+\usepackage[most]{tcolorbox}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{tikzpagenodes}
+\tcbuselibrary{skins}
+
+\graphicspath{ {figures/} { {{- imagesrc -}}/}}
+
+% page color
+\pagecolor[rgb]{0.95,0.95,0.95}   % 전체 배경색 (밝은 회색)
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.5em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection}{0.5em}{}
+% \section 번호 대신 네모 기호
+\titleformat{\section}
+  {\large\bfseries}   % 글꼴 설정
+  {\makebox[1.5em][c]{\rule{0.8em}{0.8em}}}  % <-- 네모 (검정색 사각형)
+  {0.5em}{}           % 간격
+
+% font color
+\color[HTML]{3B3838}
+
+% 본문 담길 흰색 박스
+\tcbset{
+  mysection/.style={
+      colback=white,
+      colframe=white,
+      sharp corners,
+      boxrule=0pt,
+      enhanced,
+      left=8mm,
+      right=8mm,
+      top=6mm,
+      bottom=6mm,
+      before skip=12pt,
+      after skip=12pt,
+      interior style={top color=white, bottom color=black!3!white},
+      fuzzy halo=2mm with black!20!white,
+  }
+}
+
+% 제목 바
+\definecolor{gradStart}{HTML}{1058A3} % 왼쪽: 진한 파랑
+\definecolor{gradEnd}{HTML}{89B2E9}   % 오른쪽: 밝은 하늘색
+
+\newcommand{\topbar}[1]{
+    \begin{tikzpicture}[remember picture,overlay]
+        \node[anchor=north west, inner sep=0pt] at (current page.north west) {
+            \begin{tcolorbox}[
+                width=\paperwidth,
+                height=50pt,
+                boxrule=0pt,
+                sharp corners,
+                left=0pt, right=10mm, top=6pt, bottom=6pt,
+                enhanced, % 그라데이션 필수 옵션
+                colframe=gradStart, % 테두리는 시작색과 맞춤 (흰색 선 방지)
+                interior style={
+                    left color=gradStart,  % 왼쪽 색상
+                    right color=gradEnd    % 오른쪽 색상
+                }
+            ]
+            \raggedleft
+            \vspace{3mm}
+            \textcolor{white}{\huge \bfseries #1}
+            \end{tcolorbox}
+        };
+    \end{tikzpicture}
+}
+% ======================
+% 문서 본문
+% ======================
+\title{건물 리모델링 성능 보고서}
+
+\begin{document}
+
+% ==================== 갑지 ====================
+\topbar{그린리모델링 정성평가 결과서}
+
+\newcolumntype{L}{>{\columncolor[gray]{0.9}\bfseries\centering\arraybackslash}p{0.2\textwidth}}
+\newcolumntype{C}{>{\centering\arraybackslash}p{0.3\textwidth}}
+
+% 본문
+\setlength{\tabcolsep}{0pt}
+\renewcommand{\arraystretch}{1.3}
+
+\begin{tcolorbox}[mysection,
+  boxsep=0pt]
+  \centering
+\begin{tabular}{L|C|L|C}
+\hline
+건축물명 & {{metadata.name}} & 주소 & {{metadata.addr}} \\ \hline
+관리건축물대장PK & {{building_register_pk}} & 용도 & {{master['구분']}} \\ \hline
+건축 허가일자 & {{metadata.date}} & GR 준공일자 & {{gr_completion_date}} \\ \hline
+연면적 & {{comment.연면적}}$\mathrm{m^2}$ & 층수  & 지하 {{floors_below}}층 / 지상{{floors_above}}층            \\ \hline
+시뮬레이션 엔진 & EplusSimple V0.6.1 & 기상데이터 & 24년도 (기상청) \\ \hline
+
+\end{tabular}
+\end{tcolorbox}
+
+\section{주요 변화}
+\begin{tcolorbox}[mysection, bottom=2mm, top=2mm]
+\small
+ 
+{{majorchangetex}}
+
+\vspace{1mm}
+\end{tcolorbox}
+
+\section{시뮬레이션 결과}
+
+\begin{tcolorbox}[
+  mysection,
+  boxsep=0pt,      % 내부 기본 붕 뜬 여백 제거 (표 넣을 때 중요)
+  left=2.5mm,        % 왼쪽 여백 추가
+  right=5mm,       % 오른쪽 여백 추가
+  top=2mm,         % 위쪽 살짝
+  bottom=2mm       % 아래쪽 살짝
+  ]
+\small
+{{summarytabletex[0]}}
+\vspace{4mm}
+{{summarytabletex[1]}}
+
+\begin{center}
+  \includegraphics[height=5.5cm]{energy_summary.png}
+\end{center}
+\end{tcolorbox}
+
+% ==================== 을지 ====================
+
+\clearpage
+\topbar{그린리모델링 요소기술}
+\section{건물성능 입력변수}
+\begin{tcolorbox}[mysection, bottom=2mm, top=2mm]
+\small
+{{perfchangetex}}
+\vspace{1mm}
+\end{tcolorbox}
+
+\section{운영특성 입력변수}
+\begin{tcolorbox}[mysection, bottom=2mm, top=2mm]
+{{surveychangetex}}
+\vspace{1mm}
+\end{tcolorbox}
+
+\clearpage
+\topbar{용도별, 열원별, 월별 시뮬레이션 결과}
+\par\noindent
+\includegraphics[width=\linewidth]{page3_summary.png}
+\vspace{2mm}
+\includegraphics[width=\linewidth]{simulation_results.png}
+
+\clearpage
+\topbar{현장조사}
+
+\section{기술요소 시공현황}
+
+\begin{tcolorbox}[mysection, bottom=2mm, top=2mm]
+{{equinitytex}}
+\end{tcolorbox}
+
+\section{현장 조사자 의견}
+\begin{tcolorbox}[mysection,  bottom=2mm, top=2mm]
+  \begin{itemize}
+  \item \textbf{재실}: {{comment.occupant}}
+  \item \textbf{냉난방}: {{comment.hvac}} 
+  \item \textbf{기타}: {{comment.conclusion}}
+\end{itemize}
+\end{tcolorbox}
+
+\section{만족도 의견 (\textbf{ {{comment.point}} }/7점)}
+\definecolor{starGold}{RGB}{255, 180, 0} % 진한 노란색 (가독성 좋음)
+\begin{tcolorbox}[mysection, bottom=2mm, top=2mm]
+  \begin{tabular}{ @{} l @{\hspace{2mm}} l @{\hspace{6mm}} l @{\hspace{2mm}} l @{\hspace{6mm}} l @{\hspace{2mm}} l @{} }
+    동절기 온도 & {\textcolor{starGold}{ {{comment["동절기 실내 온도"]}} } } & 동절기 습도 & {\textcolor{starGold}{ {{comment["동절기 실내 습도"]}} } } & & \\
+    하절기 온도 & {\textcolor{starGold}{ {{comment["하절기 실내 온도"]}} } } & 하절기 습도 & {\textcolor{starGold}{ {{comment["하절기 실내 습도"]}} } } & & \\
+    공기질 & {\textcolor{starGold}{ {{comment["공기질"]}} } } & 음환경 & {\textcolor{starGold}{ {{comment["음환경"]}} } } & 빛환경 & {\textcolor{starGold}{ {{comment["빛환경"]}} } } \\
+  \end{tabular}
+  \par\noindent\hrulefill\par
+  {{comment.satisfaction}}
+\end{tcolorbox}
+
+\vspace{6mm}
+\par\par\noindent
+  ※ 본 분석은 도면과 현장조사에 기반한 시뮬레이션 분석으로, 도면의 해상도, 현장 조사의 정확도, 조사 수준 등에 따라 실제 에너지사용량과는 상이할 수 있음.
+{% if lpgusetext -%}
+  ※ {{ lpgusetext }}
+{% endif -%}
+
+\end{document}
