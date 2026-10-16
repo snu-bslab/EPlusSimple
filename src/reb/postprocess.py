@@ -1929,8 +1929,9 @@ def apply_profile(zone:dragon.Zone, profile:용도프로필) -> None:
     
     zone.profile = dragon.Profile(
         f"{zone.name}_{profile.이름}",
-        heating_setpoint =profile.get_setpoint_schedule("heating")  if use_tab_hvac and profile.has_heating else base.heating_setpoint,
-        cooling_setpoint =profile.get_setpoint_schedule("cooling")  if use_tab_hvac and profile.has_cooling else base.cooling_setpoint,
+        # 탭에 설비가 하나라도 있으면 난방·냉방 둘 다 탭 기준 (없는 쪽은 미사용). 주용도 값과 섞으면 난방 > 냉방 설정온도가 될 수 있음
+        heating_setpoint =profile.get_setpoint_schedule("heating")  if use_tab_hvac else base.heating_setpoint,
+        cooling_setpoint =profile.get_setpoint_schedule("cooling")  if use_tab_hvac else base.cooling_setpoint,
         hvac_availability=profile.get_hvac_availability_schedule()  if use_tab_hvac                         else base.hvac_availability,
         occupant =occupant ,
         lighting =lighting ,
