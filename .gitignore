@@ -216,3 +216,14 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# 옛 REB(v060) 코드 백업 폴더: 절대 커밋 금지
+/legacy_v060/
+
+
+# 런처 업로드 파일, 탐색기 설정 파일
+/src/launcher/uploads/
+desktop.ini
+
+# REB 기상파일(AMY)은 runtime/Weather/AMY 에 둔다 (run setup 이 내려받음)
+/src/reb/data/*.epw

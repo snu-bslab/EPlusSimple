@@ -94,7 +94,7 @@ MAX_SURFACE_LAYERS = 5
 
 VALID_COLUMNS = {
     "건물정보"     : ["건물명","용도","north_axis [°]","주소","허가일자"],
-    "실"           : ["이름","층","천장고 [m]", "용도프로필","조명밀도 [W/m2]"],
+    "실"           : ["이름","층","천장고 [m]", "용도프로필","조명밀도 [W/m2]","침기율 [ACH@50]"], # v-070 수정사항
     "면"           : ["이름","소속 실","유형","경계조건","면적 [m2]","향 [°]","인접존 이름","구조체 이름", "쿨루프 반사율 [%]"],
     "개구부"       : ["이름","소속 면","유형","면적 [m2]","구조체 이름", "블라인드"],
     "구조체_면"    : ["이름","법규기준벽체 레이어순서","레이어1_재료","레이어1_두께 [mm]","레이어2_재료","레이어2_두께 [mm]","레이어3_재료","레이어3_두께 [mm]","레이어4_재료","레이어4_두께 [mm]","레이어5_재료","레이어5_두께 [mm]"],
@@ -131,6 +131,7 @@ COLUMN_RENAME_DICT = {
     "천장고"    : "height",
     "용도프로필": "profile",
     "조명밀도" : "light_density",
+    "침기율"   : "infiltration", # v-070 수정사항
     # 면
     "소속 실"    : "parent_zone_name",
     "유형"       : "type",
@@ -385,6 +386,11 @@ def _preprocess_excel_dict(
     excel_dict = {k:v for k,v in excel_dict.items() if k in VALID_COLUMNS.keys()}
     
     for sheetname, df in excel_dict.items():
+        
+        # v-070 수정사항: 템플릿에 없는 열(예: 침기율)은 빈 열로 채워 이전 템플릿도 읽히게 한다
+        for column in VALID_COLUMNS[sheetname]:
+            if column not in df.columns:
+                df[column] = pd.NA
         
         # Delete unused columns (auto-calculated columns)
         df_valid = df[VALID_COLUMNS[sheetname]]

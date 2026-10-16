@@ -6,6 +6,7 @@
 # built-in modules
 from __future__ import annotations
 import json
+import datetime # v-070 수정사항
 from types import SimpleNamespace
 from enum import (
     Enum,
@@ -23,7 +24,9 @@ import pandas as pd
 from .utils import (
     HEADER_ROW   ,
     VALID_COLUMNS,
+    PROFILE_RENAME_DICT, # v-070 수정사항
 )
+from .core.profile import Profile # v-070 수정사항
 
 # ---------------------------------------------------------------------------- #
 #                                   CONSTANTS                                  #
@@ -905,6 +908,215 @@ class NoHVACSystemApplied(ExcelWarning):
 # ---------------------------------------------------------------------------- #
 
 
+# v-070 수정사항
+PROFILE_SHEETNAME  = "용도프로필"
+PROFILE_EQUIPMENTS = ("난방설비", "난방설비2", "냉방설비", "냉방설비2")
+PROFILE_EQUIPMENT_ITEMS = ("종료시간", "운영시작월", "운영종료월", "설정온도")
+
+
+def _user_profiles(exceldata:dict[str, pd.DataFrame]) -> pd.DataFrame:
+    # 용도프로필 탭(header 없음): B열 항목 이름, C열부터 프로필 하나씩 -> 항목 x 프로필 표
+    sheet = exceldata[PROFILE_SHEETNAME]
+    table = sheet.set_index(1).iloc[:, 1:]
+    return table.loc[:, ~pd.isna(table.loc["프로필 이름"])]
+
+
+def _is_zero_time(value) -> bool:
+    if isinstance(value, datetime.time):
+        return (value.hour, value.minute) == (0, 0)
+    return str(value).strip() in ("00:00", "0:00", "00:00:00")
+
+
+class NoProfileSheet(ExcelException):
+
+    def __init__(self) -> None:
+
+        super().__init__(PROFILE_SHEETNAME, PROFILE_SHEETNAME)
+        self.message = f"'{PROFILE_SHEETNAME}' 시트가 존재하지 않습니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[NoProfileSheet]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return [NoProfileSheet()]
+
+        return []
+
+
+class UndefinedProfile(ExcelException):
+
+    def __init__(self, object_name:str, inputted_profile:str) -> None:
+
+        super().__init__("실", object_name)
+        self.message = f"실 '{self.object_name}'의 용도프로필 '{inputted_profile}'은 내장 프로필에도 '{PROFILE_SHEETNAME}' 시트에도 없습니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[UndefinedProfile]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # reference data
+        valid_profiles = list(Profile._DB.keys()) + list(PROFILE_RENAME_DICT.keys()) + _user_profiles(exceldata).loc["프로필 이름"].to_list()
+
+        # check
+        exceptions = []
+        for _, row in exceldata["실"].iterrows():
+
+            if not pd.isna(row["용도프로필"]) and row["용도프로필"] not in valid_profiles:
+                exceptions.append(
+                    UndefinedProfile(
+                        row["이름"],
+                        row["용도프로필"]
+                    )
+                )
+
+        return exceptions
+
+
+class InvalidProfileBase(ExcelException):
+
+    def __init__(self, object_name:str, inputted_base:str) -> None:
+
+        super().__init__(PROFILE_SHEETNAME, object_name)
+        self.message = f"프로필 '{self.object_name}'의 실 주용도 '{inputted_base}'은 내장 프로필에 없습니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[InvalidProfileBase]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # reference data
+        valid_bases = list(Profile._DB.keys()) + list(PROFILE_RENAME_DICT.keys())
+
+        # check
+        exceptions = []
+        for _, column in _user_profiles(exceldata).items():
+
+            if pd.isna(column["실 주용도"]) or column["실 주용도"] not in valid_bases:
+                exceptions.append(
+                    InvalidProfileBase(
+                        column["프로필 이름"],
+                        column["실 주용도"]
+                    )
+                )
+
+        return exceptions
+
+
+class IncompleteProfileOccupancy(ExcelException):
+
+    def __init__(self, object_name:str) -> None:
+
+        super().__init__(PROFILE_SHEETNAME, object_name)
+        self.message = f"프로필 '{self.object_name}'의 상주인원 수, 재실시작시간, 재실종료시간은 모두 입력하거나 모두 비워야 합니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[IncompleteProfileOccupancy]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # check
+        exceptions = []
+        for _, column in _user_profiles(exceldata).items():
+
+            filled = [not pd.isna(column[item]) for item in ("상주인원 수 [명]", "상주인원 재실시작시간", "상주인원 재실종료시간")]
+            if any(filled) and not all(filled):
+                exceptions.append(
+                    IncompleteProfileOccupancy(column["프로필 이름"])
+                )
+
+        return exceptions
+
+
+class IncompleteProfileEquipment(ExcelException):
+
+    def __init__(self, object_name:str, equipment:str, item:str) -> None:
+
+        super().__init__(PROFILE_SHEETNAME, object_name)
+        self.message = f"프로필 '{self.object_name}'의 {equipment} 시작시간이 입력되었으나 {equipment} {item}이 비어 있습니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[IncompleteProfileEquipment]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # check
+        exceptions = []
+        for _, column in _user_profiles(exceldata).items():
+            for equipment in PROFILE_EQUIPMENTS:
+
+                start = column[f"{equipment} 시작시간"]
+                end   = column[f"{equipment} 종료시간"]
+                if pd.isna(start):
+                    continue
+                # 00:00 ~ 00:00 은 미사용 표시이므로 나머지 항목 불필요
+                if _is_zero_time(start) and not pd.isna(end) and _is_zero_time(end):
+                    continue
+
+                for item in PROFILE_EQUIPMENT_ITEMS:
+                    if pd.isna(column[f"{equipment} {item}"]):
+                        exceptions.append(
+                            IncompleteProfileEquipment(column["프로필 이름"], equipment, item)
+                        )
+
+        return exceptions
+
+
+class NotUsedProfile(ExcelWarning):
+
+    def __init__(self, object_name:str) -> None:
+
+        super().__init__(PROFILE_SHEETNAME, object_name)
+        self.message = f"'{PROFILE_SHEETNAME}' 시트의 프로필 '{self.object_name}'은 어떤 실에서도 사용되지 않습니다."
+
+        return
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[NotUsedProfile]:
+
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # reference data
+        used_profiles = exceldata["실"]["용도프로필"].to_list()
+
+        # check
+        warnings = []
+        for name in _user_profiles(exceldata).loc["프로필 이름"]:
+
+            if name not in used_profiles:
+                warnings.append(NotUsedProfile(name))
+
+        return warnings
+
+
+# v-070 수정사항
+EXCEL_REB_INSPECTORS = [
+    # exceptions
+    NoProfileSheet,
+    UndefinedProfile,
+    InvalidProfileBase,
+    IncompleteProfileOccupancy,
+    IncompleteProfileEquipment,
+    # warnings
+    NotUsedProfile,
+]
+
+
 EXCEL_INSPECTORS = [
     # exceptions
     InvalidAdjacentZoneName,
@@ -930,13 +1142,19 @@ JSON_INSPECTORS = [
     
 ]
 
-def debug_excel(filepath:str) -> list[ExcelException]:
+def debug_excel(filepath:str, include_reb:bool=False) -> list[ExcelException]:
     exceldata = pd.read_excel(filepath, sheet_name=list(VALID_COLUMNS.keys()), header=HEADER_ROW)
-
+    
+    # v-070 수정사항
+    if include_reb:
+        with pd.ExcelFile(filepath) as f:
+            if PROFILE_SHEETNAME in f.sheet_names:
+                exceldata[PROFILE_SHEETNAME] = pd.read_excel(f, sheet_name=PROFILE_SHEETNAME, header=None)
+    
     exceptions = []
     warnings   = []
     
-    inspectors = EXCEL_INSPECTORS
+    inspectors = EXCEL_INSPECTORS + EXCEL_REB_INSPECTORS if include_reb else EXCEL_INSPECTORS
     for inspector in inspectors:
         
         # check

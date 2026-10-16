@@ -614,6 +614,7 @@ class Zone:
         light_density:int|float,
         supply_systems     :list[SupplySystem]=None,
         ventilation_systems:list[VentilationSystem]=None,
+        infiltration       :int|float|None=None, # v-070 수정사항
         *,
         floor:int|None=None,
         ID:str|None = None
@@ -636,6 +637,7 @@ class Zone:
         if ventilation_systems is None:
             ventilation_systems = []
         self.ventilation_systems = ventilation_systems
+        self.infiltration = infiltration # v-070 수정사항
         
         # set default ID if not specified
         if ID is None:
@@ -721,6 +723,10 @@ class Zone:
     @property
     def infiltration(self) -> float:
         
+        # v-070 수정사항
+        if self.__infiltration is not None:
+            return self.__infiltration
+        
         has_outdoor_window = lambda surf: (
             surf.boundary == SurfaceBoundaryCondition.OUTDOOR
         ) and any(
@@ -732,6 +738,12 @@ class Zone:
         
         else:
             return 0
+    
+    # v-070 수정사항
+    @infiltration.setter
+    @validate_range(min=0)
+    def infiltration(self, value:int|float|None) -> None:
+        self.__infiltration = value
     
     @property
     def area(self) -> int|float:
@@ -795,6 +807,7 @@ class Zone:
             input.light_density,
             [supply_system_dict[sys_id] for sys_id in input.supply_system_ids],
             ventilation_systems,
+            infiltration=getattr(input, "infiltration", None), # v-070 수정사항
             ID=input.id
         )
         
