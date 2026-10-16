@@ -1837,7 +1837,7 @@ class SequentialLoadFractionController(
                 1,
             )
 
-        return schedule.changetype(
+        return schedule.astype(
             ScheduleType.REAL
         )
 
