@@ -37,7 +37,9 @@ class Fuel(str, Enum):
     NATURALGAS      = "natural_gas"
     LPG             = "lpg"
     OIL             = "oil"
+    BIOMASS         = "biomass"
     DISTRICTHEATING = "district_heating"
+    DISTRICTCOOLING = "district_cooling"
     
     def __str__(self) -> str:
         return self.value
@@ -53,8 +55,12 @@ class Fuel(str, Enum):
                 return dragon.Fuel.PROPANE
             case Fuel.OIL:
                 return dragon.Fuel.DIESEL
+            case Fuel.BIOMASS:
+                return dragon.Fuel.COAL
             case Fuel.DISTRICTHEATING:
                 return dragon.Fuel.OTHERFUEL1
+            case Fuel.DISTRICTCOOLING:
+                return dragon.Fuel.OTHERFUEL2
 
 
 class SourceSystem:

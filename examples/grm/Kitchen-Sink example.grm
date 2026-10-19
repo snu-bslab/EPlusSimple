@@ -397,7 +397,7 @@
                 {
                     "id": "SRCE-0x000001",
                     "name": "보일러",
-                    "fuel_type": "lpg"
+                    "fuel_type": "biomass"
                 }
             ],
             "district_heating": [

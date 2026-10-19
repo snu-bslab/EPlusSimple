@@ -877,7 +877,9 @@ class GreenRetrofitResult:
             Fuel.NATURALGAS     : "NaturalGas" ,
             Fuel.LPG            : "Propane"    ,
             Fuel.OIL            : "Diesel"     ,
+            Fuel.BIOMASS        : "Coal"  ,
             Fuel.DISTRICTHEATING: "OtherFuels" ,
+            Fuel.DISTRICTCOOLING: "OtherFuels" ,
         }
         
         df_site = pd.DataFrame(index=[v.name for v in Fuel], columns=list(usecol_map.keys())).map(lambda _: [float(0)]*12)
