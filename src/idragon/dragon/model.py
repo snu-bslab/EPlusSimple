@@ -152,6 +152,17 @@ class EnergyModel:
             "SumOrAverage",
         ])
         
+        idf["Output:Table:Monthly"].append([
+            "EPS_DISTRICT_MONTHLY",
+            3,
+
+            "DistrictHeatingWater:Plant",
+            "SumOrAverage",
+
+            "DistrictCooling:Plant",
+            "SumOrAverage",
+        ])
+        
         return idf
     
     @staticmethod

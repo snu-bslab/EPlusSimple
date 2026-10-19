@@ -877,13 +877,11 @@ class GreenRetrofitResult:
             Fuel.NATURALGAS     : "NaturalGas" ,
             Fuel.LPG            : "Propane"    ,
             Fuel.OIL            : "Diesel"     ,
-            Fuel.BIOMASS        : "Coal"  ,
-            Fuel.DISTRICTHEATING: "OtherFuels" ,
-            Fuel.DISTRICTCOOLING: "OtherFuels" ,
+            Fuel.BIOMASS        : "Coal"       ,
         }
         
         df_site = pd.DataFrame(index=[v.name for v in Fuel], columns=list(usecol_map.keys())).map(lambda _: [float(0)]*12)
-        for fuel_type in Fuel:
+        for fuel_type in fuel_name_in_energyplus.keys():
             
             # check if the fuel is used
             table_name = f"EndUseEnergyConsumption{fuel_name_in_energyplus[fuel_type]}Monthly"
@@ -901,7 +899,11 @@ class GreenRetrofitResult:
         hotwater_energy_dict = self.calc_domestic_hotwater_site_energy()
         for fuel, energy in hotwater_energy_dict.items():
             df_site.loc[fuel, "hotwater"] = energy
-        
+            
+        # district heating and cooling
+        df_site.loc[Fuel.DISTRICTHEATING.name, "heating"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTHEATINGWATER:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+        df_site.loc[Fuel.DISTRICTCOOLING.name, "cooling"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTCOOLING:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+
         # On-site PV generation used within the facility
         table_name = "ELECTRICITYBALANCEMONTHLY"
 

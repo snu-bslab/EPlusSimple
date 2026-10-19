@@ -1596,7 +1596,8 @@ class Boiler(SourceSystem):
 
 class DistrictHeating(SourceSystem):
     
-    SETPOINT_TEMPERATURE_DEFAULT = 60
+    SETPOINT_TEMPERATURE_DEFAULT = 120
+    RETURN_TEMPERATURE_DEFAULT   = 65
     
     def __init__(self,
         name:str,
@@ -1618,11 +1619,11 @@ class DistrictHeating(SourceSystem):
     
     @property
     def idf_inletnodename(self) -> str:
-        return f"{self.idf_loopname} Supply Outlet Pipe OutletNode"
+        return f"{self.idf_objname} Supply Outlet Pipe OutletNode"
     
     @property
     def idf_outletnodename(self) -> str:
-        return f"{self.idf_loopname} Demand Inlet Pipe InletNode"
+        return f"{self.idf_objname} Demand Inlet Pipe InletNode"
     
     def to_idf_object(self) -> list[IdfObject]:
         
@@ -1830,7 +1831,7 @@ class DistrictHeating(SourceSystem):
                 "Name": self.idf_loopname,
                 "Plant Equipment Operation Scheme Name": f"{self.idf_loopname} OperationScheme",
                 "Loop Temperature Setpoint Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
-                "Maximum Loop Temperature": 99.9,
+                "Maximum Loop Temperature": DistrictHeating.SETPOINT_TEMPERATURE_DEFAULT + 10,
                 "Minimum Loop Temperature":  0.1,
                 "Maximum Loop Flow Rate":"autosize",
                 "Plant Side Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode",
@@ -1847,7 +1848,7 @@ class DistrictHeating(SourceSystem):
                 "Plant or Condenser Loop Name": self.idf_loopname,
                 "Loop Type": "Heating",
                 "Design Loop Exit Temperature": DistrictHeating.SETPOINT_TEMPERATURE_DEFAULT,
-                "Loop Design Temperature Difference": 10,
+                "Loop Design Temperature Difference": DistrictHeating.SETPOINT_TEMPERATURE_DEFAULT - DistrictHeating.RETURN_TEMPERATURE_DEFAULT,
             })
         ]
         
@@ -1855,7 +1856,7 @@ class DistrictHeating(SourceSystem):
 
 class DistrictCooling(SourceSystem):
     
-    SETPOINT_TEMPERATURE_DEFAULT = 7
+    SETPOINT_TEMPERATURE_DEFAULT = 3
     
     def __init__(self,
         name:str,
@@ -1877,11 +1878,11 @@ class DistrictCooling(SourceSystem):
     
     @property
     def idf_inletnodename(self) -> str:
-        return f"{self.idf_loopname} Supply Outlet Pipe OutletNode"
+        return f"{self.idf_objname} Supply Outlet Pipe OutletNode"
     
     @property
     def idf_outletnodename(self) -> str:
-        return f"{self.idf_loopname} Demand Inlet Pipe InletNode"
+        return f"{self.idf_objname} Demand Inlet Pipe InletNode"
     
     def to_idf_object(self) -> list[IdfObject]:
         

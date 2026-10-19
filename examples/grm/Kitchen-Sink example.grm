@@ -270,7 +270,7 @@
                 "id": "MTRL-0x000004",
                 "name": "Insulation",
                 "conductivity": 0.04,
-                "density": 0.01,
+                "density": 12.0,
                 "specific_heat": 100
             },
             {
@@ -373,7 +373,7 @@
                 {
                     "id": "SUPL-0x000003",
                     "name":"바닥난방",
-                    "source_system_id": "SRCE-0x000001"
+                    "source_system_id": "SRCE-0x000002"
                 }
             ],
             "electric_radiant_floor": [
