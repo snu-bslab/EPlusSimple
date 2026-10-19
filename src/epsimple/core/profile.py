@@ -6,6 +6,7 @@
 # built-in modules
 from __future__ import annotations
 import re
+from types import SimpleNamespace
 
 # third-party modules
 import pandas as pd
@@ -161,6 +162,39 @@ class KoreanUsageProfile(Profile):
     
     """ in-out
     """
+    
+    @staticmethod
+    def from_json(
+        input:SimpleNamespace
+    ) -> KoreanUsageProfile:
+        
+        return KoreanUsageProfile(
+            input.name,
+            input.occupant_start,
+            input.occupant_end,
+            input.hvac_start,
+            input.hvac_end,
+            input.ventilation_airflow,
+            input.domestic_hotwater_load,
+            input.lighting_hours,
+            input.occupancy_load,
+            input.equipment_load,
+            input.heating_setpoint,
+            input.cooling_setpoint,
+            operate_in_monday    = bool(input.weekly_schedule.monday   ),
+            operate_in_tuesday   = bool(input.weekly_schedule.tuesday  ),
+            operate_in_wednesday = bool(input.weekly_schedule.wednesday),
+            operate_in_thursday  = bool(input.weekly_schedule.thursday ),
+            operate_in_friday    = bool(input.weekly_schedule.friday   ),
+            operate_in_saturday  = bool(input.weekly_schedule.saturday ),
+            operate_in_sunday    = bool(input.weekly_schedule.sunday   ),
+            operate_in_holiday   = bool(input.weekly_schedule.holiday  ),
+            vacations=[
+                ((period.start_month, period.start_day), (period.end_month, period.end_day))
+                for period in input.vacations           
+            ],
+            ID = input.id
+        )
     
     def _get_vacation_mask(self) -> Schedule:
         

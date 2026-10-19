@@ -41,6 +41,7 @@ from . import (
     FenestrationConstruction,
     # profile
     Profile,
+    KoreanUsageProfile,
     # hvac
     Fuel,
     RadiantFloor      ,
@@ -450,6 +451,12 @@ class GreenRetrofitModel:
         surface_construction_dict["open"]    = OpenConstruction()
         surface_construction_dict["unknown"] = UnknownConstruction()
         
+        # profile
+        profile_dict = {
+            profile_input.id: KoreanUsageProfile.from_json(profile_input)
+            for profile_input in input.resources.profiles
+        }
+        
         # system
         source_system_dict = {
             sys_item.id: SourceSystem.TYPE_MAPPER[sys_type].from_json(sys_item)
@@ -485,6 +492,7 @@ class GreenRetrofitModel:
                 zone_input                    ,
                 surface_construction_dict     ,
                 fenestration_construction_dict,
+                profile_dict                  ,
                 supply_system_dict            ,
                 ventilation_system_dict       ,
             )

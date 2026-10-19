@@ -279,7 +279,7 @@
             "boiler": [
                 {
                     "id": "SRCE-0x000001",
-                    "name": "보보일러",
+                    "name": "보일러",
                     "fuel_type": "lpg"
                 }
             ],
