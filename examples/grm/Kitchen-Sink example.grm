@@ -21,7 +21,7 @@
                         "light_density": 10,
                         "supply_system_ids": [
                            "SUPL-0x000000",
-                           "SUPL-0x000001"
+                           "SUPL-0x000002"
                         ],
                         "ventilation_system_assignments": [
 
@@ -113,8 +113,9 @@
                         "profile_id": "PROF-0x000000",
                         "light_density": 10,
                         "supply_system_ids": [
-                           "SUPL-0x000000",
-                           "SUPL-0x000001"
+                            "SUPL-0x000001",
+                            "SUPL-0x000000",
+                            "SUPL-0x000003"
                         ],
                         "ventilation_system_assignments": [
 
@@ -350,6 +351,11 @@
                 }
             ],
             "fan_coil_unit": [
+                {
+                    "id": "SUPL-0x000001",
+                    "name": "냉방용FCU",
+                    "source_system_id": "SRCE-0x000003"
+                }
 
             ],
             "radiator": [
@@ -360,7 +366,12 @@
             ],
             "radiant_floor":[
                 {
-                    "id": "SUPL-0x000001",
+                    "id": "SUPL-0x000002",
+                    "name":"바닥난방",
+                    "source_system_id": "SRCE-0x000001"
+                },
+                {
+                    "id": "SUPL-0x000003",
                     "name":"바닥난방",
                     "source_system_id": "SRCE-0x000001"
                 }
@@ -391,7 +402,10 @@
 
             ],
             "district_cooling": [
-
+                {
+                    "id": "SRCE-0x000003",
+                    "name": "지역냉방"
+                }
             ],
             "boiler": [
                 {
@@ -401,6 +415,10 @@
                 }
             ],
             "district_heating": [
+                {
+                    "id": "SRCE-0x000002",
+                    "name": "지역난방"
+                }
 
             ]
         },
@@ -411,9 +429,6 @@
         },
         "renewable_energy_systems": {
             "photovoltaic_panel": [
-
-            ],
-            "wind_turbine": [
 
             ]
         }

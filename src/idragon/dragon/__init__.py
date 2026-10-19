@@ -53,6 +53,8 @@ from .hvac import (
     OpenSingleSpeedCoolingTower,
     OpenTwoSpeedCoolingTower,
     Boiler,
+    DistrictHeating,
+    DistrictCooling,
     # supply systems
     SupplySystem,
     SupplyGroup,

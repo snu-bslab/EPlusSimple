@@ -1397,7 +1397,7 @@ class Boiler(SourceSystem):
             }, ignore_default=False),
             IdfObject("Branch",{
                 "Name": f"{self.idf_loopname} Supply MainComponent",
-                "Component 1 Object Type": "Boiler:HotWater",
+                "Component 1 Object Type": self.idf_objtypename,
                 "Component 1 Name": self.idf_objname,
                 "Component 1 Inlet Node Name" : f"{self.idf_objname} Water InletNode" ,
                 "Component 1 Outlet Node Name": f"{self.idf_objname} Water OutletNode",
@@ -1493,7 +1493,7 @@ class Boiler(SourceSystem):
             # load distribution
             IdfObject("PlantEquipmentList", {
                 "Name": f"{self.idf_loopname} EquipmentList",
-                "Equipment 1 Object Type": "Boiler:HotWater",
+                "Equipment 1 Object Type": self.idf_objtypename,
                 "Equipment 1 Name": self.idf_objname
             }, ignore_default=False),
             IdfObject("PlantEquipmentOperation:HeatingLoad", {
@@ -1552,7 +1552,7 @@ class Boiler(SourceSystem):
             IdfObject("Sizing:Plant",{
                 "Plant or Condenser Loop Name": self.idf_loopname,
                 "Loop Type": "Heating",
-                "Design Loop Exit Temperature": 80,
+                "Design Loop Exit Temperature": self.setpoint_temperature,
                 "Loop Design Temperature Difference": 10,
             })
         ]
@@ -1592,7 +1592,526 @@ class Boiler(SourceSystem):
         subloop_demandbranchlist_obj[f"Branch {num_current_branches+1} Name"] = lastbranch
         
         return subloop_obj + generatorbranch_obj
+
+
+class DistrictHeating(SourceSystem):
+    
+    SETPOINT_TEMPERATURE_DEFAULT = 60
+    
+    def __init__(self,
+        name:str,
+        capacity:int|float|None = None,
+        *,
+        pump_efficiency:int|float = 0.9,
+        ) -> None:
         
+        self.name = name
+        self.capacity = capacity
+        self.pump_efficiency = pump_efficiency
+
+    """ idf-related
+    """
+    
+    @property
+    def idf_objtypename(self) -> str:
+        return "DistrictHeating:Water"
+    
+    @property
+    def idf_inletnodename(self) -> str:
+        return f"{self.idf_loopname} Supply Outlet Pipe OutletNode"
+    
+    @property
+    def idf_outletnodename(self) -> str:
+        return f"{self.idf_loopname} Demand Inlet Pipe InletNode"
+    
+    def to_idf_object(self) -> list[IdfObject]:
+        
+        components = [
+            IdfObject(self.idf_objtypename,{
+                "Name": self.idf_objname,
+                "Nominal Capacity": self.capacity if self.capacity is not None else "autosize",
+                "Hot Water Inlet Node Name" : self.idf_inletnodename,
+                "Hot Water Outlet Node Name": self.idf_outletnodename,
+            }, ignore_default=False),
+            IdfObject("Pump:VariableSpeed",{
+                "Name": f"VSDPump_for_{self.idf_objname}",
+                "Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode" ,
+                "Outlet Node Name": f"VSDPump_for_{self.idf_objname} Water OutletNode",
+                "Design Maximum Flow Rate": "autosize",
+                "Motor Efficiency": self.pump_efficiency,
+                "Design Power Consumption": "autosize",
+            }, ignore_default=False),
+        ]
+        
+        non_functional_pipes = [
+            # supply
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Supply Bypass Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Supply Outlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # demand
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Inlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Bypass Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Outlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+            }, ignore_default=False),
+        ]
+        
+        branches = [
+            # supply
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Inlet",
+                "Component 1 Object Type": "Pump:VariableSpeed",
+                "Component 1 Name": f"VSDPump_for_{self.idf_objname}",
+                "Component 1 Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode" ,
+                "Component 1 Outlet Node Name": f"VSDPump_for_{self.idf_objname} Water OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Bypass",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Supply Bypass Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Supply Bypass Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply MainComponent",
+                "Component 1 Object Type": self.idf_objtypename,
+                "Component 1 Name": self.idf_objname,
+                "Component 1 Inlet Node Name" : self.idf_inletnodename,
+                "Component 1 Outlet Node Name": self.idf_outletnodename,
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Outlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Supply Outlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Supply Outlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # supply: list
+            IdfObject("BranchList", {
+               "Name": self.idf_supplybranchlistname,
+               "Branch 1 Name": f"{self.idf_loopname} Supply Inlet",
+               "Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+               "Branch 3 Name": f"{self.idf_loopname} Supply MainComponent",
+               "Branch 4 Name": f"{self.idf_loopname} Supply Outlet",
+            }, ignore_default=False),
+            # demand
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Inlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Inlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Inlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Bypass",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Bypass Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Bypass Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Outlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Outlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Outlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # demand: list
+            IdfObject("BranchList", {
+               "Name": self.idf_demandbranchlistname,
+               "Branch 1 Name": f"{self.idf_loopname} Demand Inlet",
+               "Branch 2 Name": f"{self.idf_loopname} Demand Bypass",
+               "Branch 3 Name": f"{self.idf_loopname} Demand Outlet",
+            }, ignore_default=False),
+        ]
+        
+        connectors = [
+            # supply
+            IdfObject("Connector:Splitter", {
+                "Name": self.idf_supplysplittername,
+                "Inlet Branch Name": f"{self.idf_loopname} Supply Inlet",
+                "Outlet Branch 1 Name": f"{self.idf_loopname} Supply MainComponent",
+                "Outlet Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+            }, ignore_default=False),
+            IdfObject("Connector:Mixer", {
+                "Name": self.idf_supplymixername,
+                "Outlet Branch Name": f"{self.idf_loopname} Supply Outlet",
+                "Inlet Branch 1 Name": f"{self.idf_loopname} Supply MainComponent",
+                "Inlet Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+            }, ignore_default=False),
+            IdfObject("ConnectorList",{
+                "Name": f"{self.idf_loopname} Supply Connectors",
+                "Connector 1 Object Type": "Connector:Splitter",
+                "Connector 1 Name"       : self.idf_supplysplittername,
+                "Connector 2 Object Type": "Connector:Mixer",
+                "Connector 2 Name"       : self.idf_supplymixername,
+            }, ignore_default=False),
+            # demand
+            IdfObject("Connector:Splitter", {
+                "Name": self.idf_demandsplittername,
+                "Inlet Branch Name": f"{self.idf_loopname} Demand Inlet",
+                "Outlet Branch 1 Name": f"{self.idf_loopname} Demand Bypass",
+            }, ignore_default=False),
+            IdfObject("Connector:Mixer", {
+                "Name": self.idf_demandmixername,
+                "Outlet Branch Name": f"{self.idf_loopname} Demand Outlet",
+                "Inlet Branch 1 Name": f"{self.idf_loopname} Demand Bypass",
+            }, ignore_default=False),
+            IdfObject("ConnectorList",{
+                "Name": f"{self.idf_loopname} Demand Connectors",
+                "Connector 1 Object Type": "Connector:Splitter",
+                "Connector 1 Name"       : self.idf_demandsplittername,
+                "Connector 2 Object Type": "Connector:Mixer",
+                "Connector 2 Name"       : self.idf_demandmixername,
+            }, ignore_default=False),
+        ]
+        
+        loop_controls = [
+            # load distribution
+            IdfObject("PlantEquipmentList", {
+                "Name": f"{self.idf_loopname} EquipmentList",
+                "Equipment 1 Object Type": self.idf_objtypename,
+                "Equipment 1 Name": self.idf_objname
+            }, ignore_default=False),
+            IdfObject("PlantEquipmentOperation:HeatingLoad", {
+                "Name": f"{self.idf_loopname} Operation",
+                "Load Range 1 Lower Limit":    0,
+                "Load Range 1 Upper Limit": 1E20,
+                "Range 1 Equipment List Name": f"{self.idf_loopname} EquipmentList",
+            }, ignore_default=False),
+            IdfObject("PlantEquipmentOperationSchemes", {
+                "Name": f"{self.idf_loopname} OperationScheme",
+                "Control Scheme 1 Object Type": "PlantEquipmentOperation:HeatingLoad",
+                "Control Scheme 1 Name": f"{self.idf_loopname} Operation",
+                "Control Scheme 1 Schedule Name": "ALLON"
+            }, ignore_default=False),
+            # setpoint
+            IdfObject("Schedule:Constant", {
+                "Name": f"{self.idf_loopname} SetpointTemperature",
+                "Hourly Value": DistrictHeating.SETPOINT_TEMPERATURE_DEFAULT
+            }, ignore_default=False),
+            IdfObject("SetpointManager:Scheduled", {
+                "Name":  f"{self.idf_loopname} SetpointManager",
+                "Control Variable": "Temperature",
+                "Schedule Name": f"{self.idf_loopname} SetpointTemperature",
+                "Setpoint Node or NodeList Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",     
+            }, ignore_default=False),
+            # availability
+            IdfObject("AvailabilityManager:Scheduled", {
+                "Name": f"{self.idf_loopname} AvailabilityManager",
+                "Schedule Name": "ALLON",
+            }, ignore_default=False),
+            IdfObject("AvailabilityManagerAssignmentList", {
+                "Name": f"{self.idf_loopname} AvailabilityManagerAssignmentList",
+                "Availability Manager 1 Object Type": "AvailabilityManager:Scheduled",
+                "Availability Manager 1 Name": f"{self.idf_loopname} AvailabilityManager",
+            }, ignore_default=False)
+        ]
+        
+        loop = [
+            IdfObject("PlantLoop", {
+                "Name": self.idf_loopname,
+                "Plant Equipment Operation Scheme Name": f"{self.idf_loopname} OperationScheme",
+                "Loop Temperature Setpoint Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+                "Maximum Loop Temperature": 99.9,
+                "Minimum Loop Temperature":  0.1,
+                "Maximum Loop Flow Rate":"autosize",
+                "Plant Side Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode",
+                "Plant Side Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+                "Plant Side Branch List Name": self.idf_supplybranchlistname,
+                "Plant Side Connector List Name": f"{self.idf_loopname} Supply Connectors",
+                "Demand Side Inlet Node Name" : f"{self.idf_loopname} Demand Inlet Pipe InletNode",
+                "Demand Side Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+                "Demand Side Branch List Name": self.idf_demandbranchlistname,
+                "Demand Side Connector List Name": f"{self.idf_loopname} Demand Connectors",
+                "Availability Manager List Name": f"{self.idf_loopname} AvailabilityManagerAssignmentList"
+            }, ignore_default=False),
+            IdfObject("Sizing:Plant",{
+                "Plant or Condenser Loop Name": self.idf_loopname,
+                "Loop Type": "Heating",
+                "Design Loop Exit Temperature": DistrictHeating.SETPOINT_TEMPERATURE_DEFAULT,
+                "Loop Design Temperature Difference": 10,
+            })
+        ]
+        
+        return components + non_functional_pipes + branches + connectors + loop_controls + loop
+
+class DistrictCooling(SourceSystem):
+    
+    SETPOINT_TEMPERATURE_DEFAULT = 7
+    
+    def __init__(self,
+        name:str,
+        capacity:int|float|None = None,
+        *,
+        pump_efficiency:float = 0.9,
+        ) -> None:
+        
+        self.name = name
+        self.capacity = capacity
+        self.pump_efficiency = pump_efficiency
+
+    """ idf-related
+    """
+    
+    @property
+    def idf_objtypename(self) -> str:
+        return "DistrictCooling"
+    
+    @property
+    def idf_inletnodename(self) -> str:
+        return f"{self.idf_loopname} Supply Outlet Pipe OutletNode"
+    
+    @property
+    def idf_outletnodename(self) -> str:
+        return f"{self.idf_loopname} Demand Inlet Pipe InletNode"
+    
+    def to_idf_object(self) -> list[IdfObject]:
+        
+        component_obj = [
+            IdfObject(self.idf_objtypename,{
+                "Name": self.idf_objname,
+                "Nominal Capacity": self.capacity if self.capacity is not None else "autosize",
+                "Chilled Water Inlet Node Name" : self.idf_inletnodename,
+                "Chilled Water Outlet Node Name": self.idf_outletnodename,
+            }, ignore_default=False),
+            IdfObject("Pump:VariableSpeed",{
+                "Name": f"VSDPump_for_{self.idf_objname}",
+                "Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode" ,
+                "Outlet Node Name": f"VSDPump_for_{self.idf_objname} Water OutletNode",
+                "Design Maximum Flow Rate": "autosize",
+                "Motor Efficiency": self.pump_efficiency,
+                "Design Power Consumption": "autosize",
+            }, ignore_default=False),
+        ]
+        
+        non_functional_pipes = [
+            # supply
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Supply Bypass Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Supply Outlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # demand
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Inlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Bypass Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Pipe:Adiabatic",{
+                "Name": f"{self.idf_loopname} Demand Outlet Pipe",
+                "Inlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe InletNode",
+                "Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+            }, ignore_default=False),
+        ]
+        
+        branches = [
+            # supply
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Inlet",
+                "Component 1 Object Type": "Pump:VariableSpeed",
+                "Component 1 Name": f"VSDPump_for_{self.idf_objname}",
+                "Component 1 Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode" ,
+                "Component 1 Outlet Node Name": f"VSDPump_for_{self.idf_objname} Water OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Bypass",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Supply Bypass Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Supply Bypass Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Supply Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply MainComponent",
+                "Component 1 Object Type": self.idf_objtypename,
+                "Component 1 Name": self.idf_objname,
+                "Component 1 Inlet Node Name" : self.idf_inletnodename,
+                "Component 1 Outlet Node Name": self.idf_outletnodename,
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Supply Outlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Supply Outlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Supply Outlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # supply: list
+            IdfObject("BranchList", {
+               "Name": self.idf_supplybranchlistname,
+               "Branch 1 Name": f"{self.idf_loopname} Supply Inlet",
+               "Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+               "Branch 3 Name": f"{self.idf_loopname} Supply MainComponent",
+               "Branch 4 Name": f"{self.idf_loopname} Supply Outlet",
+            }, ignore_default=False),
+            # demand
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Inlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Inlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Inlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Inlet Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Bypass",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Bypass Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Bypass Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Bypass Pipe OutletNode",
+            }, ignore_default=False),
+            IdfObject("Branch",{
+                "Name": f"{self.idf_loopname} Demand Outlet",
+                "Component 1 Object Type": "Pipe:Adiabatic",
+                "Component 1 Name": f"{self.idf_loopname} Demand Outlet Pipe",
+                "Component 1 Inlet Node Name" : f"{self.idf_loopname} Demand Outlet Pipe InletNode" ,
+                "Component 1 Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+            }, ignore_default=False),
+            # demand: list
+            IdfObject("BranchList", {
+               "Name": self.idf_demandbranchlistname,
+               "Branch 1 Name": f"{self.idf_loopname} Demand Inlet",
+               "Branch 2 Name": f"{self.idf_loopname} Demand Bypass",
+               "Branch 3 Name": f"{self.idf_loopname} Demand Outlet",
+            }, ignore_default=False),
+        ]
+        
+        connectors = [
+            # supply
+            IdfObject("Connector:Splitter", {
+                "Name": self.idf_supplysplittername,
+                "Inlet Branch Name": f"{self.idf_loopname} Supply Inlet",
+                "Outlet Branch 1 Name": f"{self.idf_loopname} Supply MainComponent",
+                "Outlet Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+            }, ignore_default=False),
+            IdfObject("Connector:Mixer", {
+                "Name": self.idf_supplymixername,
+                "Outlet Branch Name": f"{self.idf_loopname} Supply Outlet",
+                "Inlet Branch 1 Name": f"{self.idf_loopname} Supply MainComponent",
+                "Inlet Branch 2 Name": f"{self.idf_loopname} Supply Bypass",
+            }, ignore_default=False),
+            IdfObject("ConnectorList",{
+                "Name": f"{self.idf_loopname} Supply Connectors",
+                "Connector 1 Object Type": "Connector:Splitter",
+                "Connector 1 Name"       : self.idf_supplysplittername,
+                "Connector 2 Object Type": "Connector:Mixer",
+                "Connector 2 Name"       : self.idf_supplymixername,
+            }, ignore_default=False),
+            # demand
+            IdfObject("Connector:Splitter", {
+                "Name": self.idf_demandsplittername,
+                "Inlet Branch Name": f"{self.idf_loopname} Demand Inlet",
+                "Outlet Branch 1 Name": f"{self.idf_loopname} Demand Bypass",
+            }, ignore_default=False),
+            IdfObject("Connector:Mixer", {
+                "Name": self.idf_demandmixername,
+                "Outlet Branch Name": f"{self.idf_loopname} Demand Outlet",
+                "Inlet Branch 1 Name": f"{self.idf_loopname} Demand Bypass",
+            }, ignore_default=False),
+            IdfObject("ConnectorList",{
+                "Name": f"{self.idf_loopname} Demand Connectors",
+                "Connector 1 Object Type": "Connector:Splitter",
+                "Connector 1 Name"       : self.idf_demandsplittername,
+                "Connector 2 Object Type": "Connector:Mixer",
+                "Connector 2 Name"       : self.idf_demandmixername,
+            }, ignore_default=False),
+        ]
+        
+        loop_controls = [
+            # load distribution
+            IdfObject("PlantEquipmentList", {
+                "Name": f"{self.idf_loopname} EquipmentList",
+                "Equipment 1 Object Type": self.idf_objtypename,
+                "Equipment 1 Name": self.idf_objname
+            }, ignore_default=False),
+            IdfObject("PlantEquipmentOperation:CoolingLoad", {
+                "Name": f"{self.idf_loopname} Operation",
+                "Load Range 1 Lower Limit":    0,
+                "Load Range 1 Upper Limit": 1E20,
+                "Range 1 Equipment List Name": f"{self.idf_loopname} EquipmentList",
+            }, ignore_default=False),
+            IdfObject("PlantEquipmentOperationSchemes", {
+                "Name": f"{self.idf_loopname} OperationScheme",
+                "Control Scheme 1 Object Type": "PlantEquipmentOperation:CoolingLoad",
+                "Control Scheme 1 Name": f"{self.idf_loopname} Operation",
+                "Control Scheme 1 Schedule Name": "ALLON"
+            }, ignore_default=False),
+            # setpoint
+            IdfObject("Schedule:Constant", {
+                "Name": f"{self.idf_loopname} SetpointTemperature",
+                "Hourly Value": DistrictCooling.SETPOINT_TEMPERATURE_DEFAULT
+            }, ignore_default=False),
+            IdfObject("SetpointManager:Scheduled", {
+                "Name":  f"{self.idf_loopname} SetpointManager",
+                "Control Variable": "Temperature",
+                "Schedule Name": f"{self.idf_loopname} SetpointTemperature",
+                "Setpoint Node or NodeList Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",     
+            }, ignore_default=False),
+            # availability
+            IdfObject("AvailabilityManager:Scheduled", {
+                "Name": f"{self.idf_loopname} AvailabilityManager",
+                "Schedule Name": "ALLON",
+            }, ignore_default=False),
+            IdfObject("AvailabilityManagerAssignmentList", {
+                "Name": f"{self.idf_loopname} AvailabilityManagerAssignmentList",
+                "Availability Manager 1 Object Type": "AvailabilityManager:Scheduled",
+                "Availability Manager 1 Name": f"{self.idf_loopname} AvailabilityManager",
+            }, ignore_default=False)
+        ]
+        
+        loop = [
+            IdfObject("PlantLoop", {
+                "Name": self.idf_loopname,
+                "Plant Equipment Operation Scheme Name": f"{self.idf_loopname} OperationScheme",
+                "Loop Temperature Setpoint Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+                "Maximum Loop Temperature": 80,
+                "Minimum Loop Temperature": 0.1,
+                "Maximum Loop Flow Rate":"autosize",
+                "Plant Side Inlet Node Name" : f"VSDPump_for_{self.idf_objname} Water InletNode",
+                "Plant Side Outlet Node Name": f"{self.idf_loopname} Supply Outlet Pipe OutletNode",
+                "Plant Side Branch List Name": self.idf_supplybranchlistname,
+                "Plant Side Connector List Name": f"{self.idf_loopname} Supply Connectors",
+                "Demand Side Inlet Node Name" : f"{self.idf_loopname} Demand Inlet Pipe InletNode",
+                "Demand Side Outlet Node Name": f"{self.idf_loopname} Demand Outlet Pipe OutletNode",
+                "Demand Side Branch List Name": self.idf_demandbranchlistname,
+                "Demand Side Connector List Name": f"{self.idf_loopname} Demand Connectors",
+                "Availability Manager List Name": f"{self.idf_loopname} AvailabilityManagerAssignmentList"
+            }, ignore_default=False),
+            IdfObject("Sizing:Plant",{
+                "Plant or Condenser Loop Name": self.idf_loopname,
+                "Loop Type": "Cooling",
+                "Design Loop Exit Temperature": DistrictCooling.SETPOINT_TEMPERATURE_DEFAULT,
+                "Loop Design Temperature Difference": 4,
+            })
+        ]
+        
+        return component_obj + non_functional_pipes + branches + connectors + loop_controls + loop
+
 # ---------------------------------------------------------------------------- #
 #                                SUPPLY SYSTEMS                                #
 # ---------------------------------------------------------------------------- #
@@ -2344,11 +2863,11 @@ class FanCoilUnit(SupplySystem):
     
     @property
     def heatable(self) -> bool:
-        return isinstance(self.source, Boiler)
+        return isinstance(self.source, Boiler|DistrictHeating)
         
     @property
     def coolable(self) -> bool:
-        return isinstance(self.source, Chiller|AbsorptionChiller)
+        return isinstance(self.source, Chiller|AbsorptionChiller|DistrictCooling)
     
     """ idf-related
     """

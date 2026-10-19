@@ -727,14 +727,9 @@ class DistrictHeating(SourceSystem):
     
     def to_dragon(self):
         
-        return dragon.Boiler(
+        return dragon.DistrictHeating(
             self.ID,
-            Fuel.DISTRICTHEATING.to_dragon(),
-            1.0 ,
-            None,
-            pump_efficiency=0.9,
         )
-        
         
     """ representation
     """
@@ -745,6 +740,73 @@ class DistrictHeating(SourceSystem):
     
     def __repr__(self) -> str:
         return f"<DistrictHeating {self.name} (ID={self.ID}) at {hex(id(self))}>"
+    
+    
+class DistrictCooling(SourceSystem):
+    
+    def __init__(self,
+        name:str,
+        *,
+        ID:str|None=None
+        ) -> None:
+        
+        # user properties
+        self.name = name
+        
+        # set default ID if not specified
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.SOURCE_SYSTEM}AUTOID{hex(id(self))}"
+        self.__ID = ID
+    
+    """ identity and equality
+    """
+    
+    @property
+    def ID(self) -> str:
+        return self.__ID
+    
+    def __hash__(self) -> int:
+        return hash(self.ID)
+    
+    def __eq__(self, other:DistrictCooling) -> bool:
+        
+        # type validation
+        if not isinstance(other, DistrictCooling):
+            raise TypeError(
+                f"Cannot compare {type(self)} instance with {type(other)} instance"
+            )
+            
+        # two district cooling systems are always equal
+        return True
+    
+    """ in-out
+    """
+    
+    @staticmethod
+    def from_json(
+        input:SimpleNamespace
+    ) -> DistrictCooling:
+    
+        return DistrictCooling(
+            input.name,
+            ID=input.id
+        )
+    
+    def to_dragon(self):
+        
+        return dragon.DistrictCooling(
+            self.ID,
+        )        
+        
+    """ representation
+    """
+
+    def __str__(self) -> str:
+        
+        return f"District-cooling system {self.name} (ID={self.ID})"
+    
+    def __repr__(self) -> str:
+        return f"<DistrictCooling {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
 
 class Boiler(SourceSystem):
@@ -1017,7 +1079,7 @@ class DXIndoorUnit(SupplySystem):
 class FanCoilUnit(DXIndoorUnit):
     
     _heatable_sources = [Boiler, DistrictHeating]
-    _coolable_sources = [Chiller, AbsorptionChiller]
+    _coolable_sources = [Chiller, AbsorptionChiller, DistrictCooling]
     
     def __init__(self,
         name,
@@ -1749,6 +1811,7 @@ SourceSystem.TYPE_MAPPER = {
     "geothermal_heatpump": GeothermalHeatPump,
     "chiller"            : Chiller           ,
     "absorption_chiller" : AbsorptionChiller ,
+    "district_cooling"   : DistrictCooling   ,
     "boiler"             : Boiler            ,
     "district_heating"   : DistrictHeating   ,
 }
