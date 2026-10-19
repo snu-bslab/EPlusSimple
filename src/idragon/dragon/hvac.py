@@ -2991,7 +2991,7 @@ class PhotoVoltaicPanel:
         name:str,
         area      :int|float, # m2
         tilt      :int|float, # deg
-        azimuth   :int|float, # deg
+        azimuth   :int|float, # deg, counter-clockwise from north
         efficiency:int|float, # -
         *,
         effective_area_ratio:int|float=0.7 # ECO2 밀착형 성능계수 (건기연 보고서 체크)

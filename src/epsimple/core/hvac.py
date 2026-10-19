@@ -1546,7 +1546,7 @@ class PhotoVoltaicSystem:
         name:str,
         area      :int|float,
         efficiency:int|float,
-        azimuth   :int|float,
+        azimuth   :int|float, # clockwise from north
         tilt      :int|float,
         *,
         ID:str|None=None
@@ -1594,7 +1594,7 @@ class PhotoVoltaicSystem:
         return self.__azimuth
     
     @azimuth.setter
-    @validate_range(min=0, max=math.nextafter(360,-math.inf))
+    @validate_range(min=math.nextafter(-360, math.inf), max=math.nextafter(360,-math.inf))
     @validate_type(int, float)
     def azimuth(self, value:int|float) -> None:
         self.__azimuth = value
@@ -1656,7 +1656,7 @@ class PhotoVoltaicSystem:
             self.ID,
             self.area      ,
             self.tilt      ,
-            self.azimuth   ,
+            (360-self.azimuth)%360,
             self.efficiency,
         )
         
