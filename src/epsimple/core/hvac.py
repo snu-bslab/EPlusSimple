@@ -8,7 +8,6 @@ from __future__ import annotations
 import math
 from enum   import Enum
 from types  import SimpleNamespace
-from typing import Any
 
 # third-party modules
 
@@ -69,6 +68,11 @@ class SourceSystem:
 
 class HeatPump(SourceSystem):
     
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+    ]
+    
     def __init__(self,
         name:str,
         fuel            :str|Fuel ,
@@ -84,7 +88,7 @@ class HeatPump(SourceSystem):
         self.name = name
         
         # fundamental properties (w/ default values)
-        self.fuel = fuel
+        self.fuel = Fuel(fuel)
         self.heating_cop      = 3.0  if heating_cop      is None else heating_cop
         self.cooling_cop      = 3.0  if cooling_cop      is None else cooling_cop
         self.heating_capacity = None if heating_capacity is None else heating_capacity
@@ -99,12 +103,19 @@ class HeatPump(SourceSystem):
     """
     
     @property
-    def fuel(self) -> str:
-        return str(self.__fuel)
+    def fuel(self) -> Fuel:
+        return self.__fuel
     
     @fuel.setter
     @validate_enum(Fuel)
     def fuel(self, value: str) -> None:
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for HeatPump: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
         self.__fuel = value
     
     @property
@@ -194,7 +205,7 @@ class HeatPump(SourceSystem):
         
         return dragon.HeatPump(
             self.ID,
-            Fuel(self.fuel).to_dragon(),
+            self.fuel.to_dragon(),
             self.heating_cop,
             self.cooling_cop,
             self.heating_capacity,
@@ -222,6 +233,11 @@ class HeatPump(SourceSystem):
 
 class GeothermalHeatPump(HeatPump):
     
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+    ]
+    
     """ in-out
     """
     
@@ -244,7 +260,7 @@ class GeothermalHeatPump(HeatPump):
         
         return dragon.HeatPump(
             self.ID,
-            Fuel(self.fuel).to_dragon(),
+            self.fuel.to_dragon(),
             self.heating_cop,
             self.cooling_cop,
             self.heating_capacity,
@@ -496,6 +512,14 @@ class Chiller(SourceSystem):
     
 class AbsorptionChiller(SourceSystem):
     
+    SUPPORTED_BOILER_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS,
+        Fuel.LPG       ,
+        Fuel.OIL       ,
+        Fuel.BIOMASS   ,
+    ]
+    
     def __init__(self,
         name:str     ,
         cop     :int|float|None=None,
@@ -556,6 +580,21 @@ class AbsorptionChiller(SourceSystem):
     @validate_type(int, float, allow_none=True)
     def boiler_efficiency(self, value: int|float) -> None:
         self.__boiler_efficiency = value
+        
+    @property
+    def boiler_fuel(self) -> Fuel:
+        return self.__boiler_fuel
+    
+    @boiler_fuel.setter
+    @validate_enum(Fuel)
+    def boiler_fuel(self, value: str) -> None:
+        if value not in self.SUPPORTED_BOILER_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for AbsorptionChiller boiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_BOILER_FUELS]}"
+            )
+        
+        self.__boiler_fuel = value
         
     """ identity and equality
     """
@@ -710,6 +749,14 @@ class DistrictHeating(SourceSystem):
 
 class Boiler(SourceSystem):
     
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+        Fuel.LPG        ,
+        Fuel.OIL        ,
+        Fuel.BIOMASS    ,
+    ]
+    
     def __init__(self,
         name:str,
         fuel           :str|Fuel ,
@@ -723,7 +770,7 @@ class Boiler(SourceSystem):
         self.name = name
         
         # fundamental properties        
-        self.fuel            = fuel
+        self.fuel            = Fuel(fuel)
         self.capacity        = None if capacity   is None else capacity
         self.efficiency      = 0.85 if efficiency is None else efficiency
         
@@ -736,13 +783,20 @@ class Boiler(SourceSystem):
     """
     
     @property
-    def fuel(self) -> str:
-        return str(self.__fuel)
+    def fuel(self) -> Fuel:
+        return self.__fuel
     
     @fuel.setter
     @validate_enum(Fuel)
     def fuel(self, value: str) -> None:
-        self.__fuel = Fuel(value)
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for Boiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
+        self.__fuel = value
     
     @property
     def efficiency(self) -> int|float:
