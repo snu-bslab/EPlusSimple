@@ -783,7 +783,7 @@ class Zone:
         ) -> Zone:
         
         ventilation_systems = []
-        for vent_sys in input.ventilation_systems:
+        for vent_sys in input.ventilation_system_assignments:
             for _ in range(vent_sys.count):
                 ventilation_systems.append(ventilation_system_dict.get(vent_sys.id))
         

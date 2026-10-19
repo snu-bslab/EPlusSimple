@@ -128,6 +128,7 @@ class GreenRetrofitModel:
         north_axis:int|float         ,
         zone      :list[Zone]=[],
         pv        :list[PhotoVoltaicSystem]=[],
+        hotwater  :list[SourceSystem]=[],
         ) -> None:
         
         # user properties
@@ -142,6 +143,7 @@ class GreenRetrofitModel:
         # child objects
         self.zone=zone
         self.pv  =pv
+        self.hotwater=hotwater
         
         # initialization
         self.__source_system = []
@@ -228,16 +230,6 @@ class GreenRetrofitModel:
         unique_sources = list(sources.values())
         
         return self.__source_system + unique_sources
-    
-    @source_system.setter
-    def source_system(self, value:list[SourceSystem]):
-        
-        if not isinstance(value, Iterable) and not all(isinstance(item, SourceSystem) for item in value):
-            raise ValueError(
-                f"Source system of a GreenRetrofitModel instance must be an iterable of SourceSystem instances."
-            )
-        
-        self.__source_system = list(value)
     
     @property
     def area(self) -> float:
@@ -439,28 +431,19 @@ class GreenRetrofitModel:
         # read the json file
         with open(filepath, encoding="UTF-8") as f:
             input = json.load(f, object_hook=lambda d: SimpleNamespace(**d))
-        
-        # create a GreenRetrofitModel
-        grm = cls(
-            input.building.name,
-            input.building.address,
-            input.building.vintage,
-            input.building.is_multifamily_housing,
-            input.building.north_axis,
-        )
-        
+
         # construction
         material_dict = {
             material_input.id: Material.from_json(material_input)
-            for material_input in input.materials
+            for material_input in input.resources.materials
         }
         surface_construction_dict = {
             construction_input.id: SurfaceConstruction.from_json(construction_input, material_dict)
-            for construction_input in input.surface_constructions
+            for construction_input in input.resources.surface_constructions
         }
         fenestration_construction_dict = {
             fenestration_input.id: FenestrationConstruction.from_json(fenestration_input)
-            for fenestration_input in input.fenestration_constructions
+            for fenestration_input in input.resources.fenestration_constructions
         }
         
         # special constructions
@@ -470,22 +453,31 @@ class GreenRetrofitModel:
         # system
         source_system_dict = {
             sys_item.id: SourceSystem.TYPE_MAPPER[sys_type].from_json(sys_item)
-            for sys_type, sys_list in vars(input.building.source_systems).items()
+            for sys_type, sys_list in vars(input.resources.source_systems).items()
             for sys_item in sys_list
         }
         supply_system_dict = {
             sys_item.id: SupplySystem.TYPE_MAPPER[sys_type].from_json(sys_item, source_system_dict)
-            for sys_type, sys_list in vars(input.building.supply_systems).items()
+            for sys_type, sys_list in vars(input.resources.supply_systems).items()
             for sys_item in sys_list
         }
         ventilation_system_dict = {
             ventilation_input.id: VentilationSystem.from_json(ventilation_input)
-            for ventilation_input in input.building.ventilation_systems
+            for ventilation_input in input.resources.ventilation_systems.energy_recovery_ventilator
         }
         photovoltaic_systems = {
             photovoltaic_input.id: PhotoVoltaicSystem.from_json(photovoltaic_input)
-            for photovoltaic_input in input.building.photovoltaic_systems
+            for photovoltaic_input in input.resources.renewable_energy_systems.photovoltaic_panel
         }
+        
+        # create a GreenRetrofitModel
+        grm = cls(
+            input.building.name,
+            input.building.address,
+            input.building.vintage,
+            input.building.is_multifamily_housing,
+            input.building.north_axis,
+        )
         
         # zone
         grm.zone = [
@@ -500,13 +492,9 @@ class GreenRetrofitModel:
             for zone_input  in floor_input.zones
         ]
         
-        # add unused source systems
-        # please refer to the definition of the supply_system property
-        applied_ID = {source.ID for source in grm.source_system}
-        grm.source_system = [sys for sys in source_system_dict.values() if sys.ID not in applied_ID]
-        
         # pv panel
         grm.pv = list(photovoltaic_systems.values())
+        grm.hotwater = list(source_system_dict[sys_id] for sys_id in input.building.hotwater_source_system_ids)
         
         # assign adjacent-zone references
         zone_dict = {zone.ID: zone for zone in grm.zone}
@@ -814,18 +802,14 @@ class GreenRetrofitResult:
         return energy
     
     def get_dhw_servers(self) -> list[SourceSystem]:
-        dhw_servers = [
-            source
-            for source in self.model.source_system
-            if hasattr(source, "hotwater_supply") and source.hotwater_supply
-        ]
+        
+        dhw_servers = self.model.hotwater
 
         if len(dhw_servers) == 0:
             dhw_servers = [
                 Boiler(
                     "HotWaterBoiler",
                     Fuel.NATURALGAS,
-                    True,
                     0.85,
                     None,
                 )

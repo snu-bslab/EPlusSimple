@@ -2166,7 +2166,7 @@ class SupplyGroup:
         return idf_objects, postprocessors    
         
     
-class AirHandlingUnit(SupplySystem):
+class DXIndoorUnit(SupplySystem):
     
     def __init__(self,
         name,
@@ -2318,16 +2318,7 @@ class AirHandlingUnit(SupplySystem):
         )
         memo[id(self)] = clone
         return clone
-    
-class PackagedAirConditioner(AirHandlingUnit):
-    
-    @property
-    def heatable(self) -> bool:
-        return False
-        
-    @property
-    def coolable(self) -> bool:
-        return True
+
     
 class FanCoilUnit(SupplySystem):
     

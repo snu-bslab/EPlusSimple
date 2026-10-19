@@ -19,8 +19,7 @@ from .hvac import (
     Fuel,
     # supply systems
     SupplySystem          ,
-    PackagedAirConditioner,
-    AirHandlingUnit       ,
+    DXIndoorUnit          ,
     Radiator              ,
     ElectricRadiator      ,
     RadiantFloor          ,

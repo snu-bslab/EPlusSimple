@@ -23,7 +23,9 @@
                            "SUPL-0x000000",
                            "SUPL-0x000001"
                         ],
-                        "ventilation_systems": [],
+                        "ventilation_system_assignments": [
+
+                        ],
                         "surfaces": [
                             {
                                 "id": "SURF-0x000000",
@@ -106,10 +108,10 @@
                 ]
             }
         ],
-        "renewable_energy_system_ids":[
+        "renewable_energy_system_assignments":[
 
         ],
-        "hotwater_supply_system_ids":[
+        "hotwater_source_system_ids":[
             "SRCE-0x000001"
         ]     
     },

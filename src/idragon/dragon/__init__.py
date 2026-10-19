@@ -56,8 +56,7 @@ from .hvac import (
     # supply systems
     SupplySystem,
     SupplyGroup,
-    AirHandlingUnit,
-    PackagedAirConditioner,
+    DXIndoorUnit,
     FanCoilUnit,
     Radiator,
     ElectricRadiator,
