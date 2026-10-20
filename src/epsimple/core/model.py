@@ -501,7 +501,12 @@ class GreenRetrofitModel:
         ]
         
         # pv panel
-        grm.pv = list(photovoltaic_systems.values())
+        grm.pv = [
+            photovoltaic_systems[assignment.id]
+            for assignment in input.building.renewable_energy_system_assignments
+            if assignment.id in photovoltaic_systems.keys()
+            for _ in range(assignment.count)
+        ]
         grm.hotwater = list(source_system_dict[sys_id] for sys_id in input.building.hotwater_source_system_ids)
         
         # assign adjacent-zone references
@@ -725,10 +730,12 @@ class GreenRetrofitModel:
                 )            
         
         # photovoltaic system
-        pv_dict = {
-            pv.ID: pv.to_dragon()
-            for pv in self.pv
-        }
+        pv_dict = {}
+        for pv in self.pv:
+            if pv.ID in pv_dict:
+                pv_dict[pv.ID].area += pv.area
+            else:
+                pv_dict[pv.ID] = pv.to_dragon()
         
         # model
         em = idragon.EnergyModel(

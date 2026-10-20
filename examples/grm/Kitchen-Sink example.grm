@@ -203,7 +203,22 @@
             }
         ],
         "renewable_energy_system_assignments":[
-
+            {
+                "id"   : "PVPN-0x000000",
+                "count": 3
+            },
+            {
+                "id"   : "PVPN-0x000001",
+                "count": 1
+            },
+            {
+                "id"   : "WDTB-0x000000",
+                "count": 5
+            },
+            {
+                "id"   : "WDTB-0x000001",
+                "count": 2
+            }
         ],
         "hotwater_source_system_ids":[
             "SRCE-0x000001"
@@ -429,7 +444,36 @@
         },
         "renewable_energy_systems": {
             "photovoltaic_panel": [
-
+                {
+                    "id": "PVPN-0x000000",
+                    "name": "태양광발전",
+                    "area": 3.2,
+                    "azimuth": 180.0,
+                    "tilt": 30.0,
+                    "efficiency": 0.19
+                },
+                {
+                    "id": "PVPN-0x000001",
+                    "name": "태양광발전",
+                    "area": 6,
+                    "azimuth": 160.0,
+                    "tilt": 45.0,
+                    "efficiency": 0.25
+                }
+            ],
+            "wind_turbine": [
+                {
+                    "id": "WDTB-0x000000",
+                    "name": "풍력발전",
+                    "capacity": 1000,
+                    "type": "horizontal"
+                },
+                {
+                    "id": "WDTB-0x000001",
+                    "name": "풍력발전",
+                    "capacity": 600,
+                    "type": "vertical"
+                }
             ]
         }
     }
