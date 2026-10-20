@@ -543,7 +543,7 @@ class GreenRetrofitModel:
         
         # collect surfaces
         surfaces_by_zone = {
-            zone.ID: zone.surface
+            zone.ID: list(zone.surface)
             for zone in self.zone
         }
         surface_dict = {
