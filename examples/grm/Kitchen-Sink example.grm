@@ -407,9 +407,6 @@
                     "fuel_type": "electricity"
                 }
             ],
-            "geothermal_heatpump": [
-
-            ],
             "chiller": [
 
             ],

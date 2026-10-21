@@ -296,12 +296,6 @@ class HeatPump(SourceSystem):
         return curve_obj + demand_listobj + outdoor_obj
 
 
-class GeothermalHeatPump(SourceSystem):
-    
-    @property
-    def idf_objtypename(self) -> str: 
-        return
-
 class CompressorType(str, Enum):
     
     TURBO         = "turbo"

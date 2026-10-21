@@ -27,7 +27,6 @@ from .hvac import (
     # source systems
     SourceSystem      ,
     HeatPump          ,
-    GeothermalHeatPump,
     Chiller           ,
     AbsorptionChiller ,
     DistrictHeating   ,

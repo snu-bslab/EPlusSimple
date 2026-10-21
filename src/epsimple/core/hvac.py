@@ -71,6 +71,7 @@ class HeatPump(SourceSystem):
     SUPPORTED_FUELS = [
         Fuel.ELECTRICITY,
         Fuel.NATURALGAS ,
+        Fuel.LPG        ,
     ]
     
     def __init__(self,
@@ -229,61 +230,6 @@ class HeatPump(SourceSystem):
     
     def __repr__(self) -> str:
         return f"<HeatPump {self.name} (ID={self.ID}) at {hex(id(self))}>"
-    
-
-class GeothermalHeatPump(HeatPump):
-    
-    SUPPORTED_FUELS = [
-        Fuel.ELECTRICITY,
-        Fuel.NATURALGAS ,
-    ]
-    
-    """ in-out
-    """
-    
-    @staticmethod
-    def from_json(
-        input:SimpleNamespace
-        ) -> GeothermalHeatPump:
-        
-        return GeothermalHeatPump(
-            input.name,
-            input.fuel_type,
-            getattr(input, "cop_heating", None),
-            getattr(input, "cop_cooling", None),
-            getattr(input, "capacity_heating", None),
-            getattr(input, "capacity_cooling", None),
-            ID=input.id
-        )
-        
-    def to_dragon(self):
-        
-        return dragon.HeatPump(
-            self.ID,
-            self.fuel.to_dragon(),
-            self.heating_cop,
-            self.cooling_cop,
-            self.heating_capacity,
-            self.cooling_capacity,
-        )
-        
-    """ representation
-    """
-    
-    def __str__(self) -> str:
-        
-        # formatting capacity
-        heating_cap_str = f"{self.heating_capacity*Unit.W_TO_KW:4,.1f}kW" if self.heating_capacity is not None else "autosize"
-        cooling_cap_str = f"{self.cooling_capacity*Unit.W_TO_KW:4,.1f}kW" if self.cooling_capacity is not None else "autosize"
-        
-        return (
-            f"{self.fuel} GeothermalHeatPump {self.name} (ID={self.ID})\n"
-            f"\t- heating capacity={heating_cap_str}, COP={self.heating_cop:4.2f}\n"
-            f"\t- cooling capacity={cooling_cap_str}, COP={self.cooling_cop:4.2f}"
-        )
-    
-    def __repr__(self) -> str:
-        return f"<GeothermalHeatPump {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
 
 class CompressorType(str, Enum):
@@ -990,8 +936,8 @@ class SupplySystem:
     
 class DXIndoorUnit(SupplySystem):
     
-    _heatable_sources = [HeatPump, GeothermalHeatPump]
-    _coolable_sources = [HeatPump, GeothermalHeatPump]
+    _heatable_sources = [HeatPump]
+    _coolable_sources = [HeatPump]
     
     def __init__(self,
         name,
@@ -1892,7 +1838,6 @@ SupplySystem.TYPE_MAPPER = {
 
 SourceSystem.TYPE_MAPPER = {
     "heatpump"           : HeatPump          ,
-    "geothermal_heatpump": GeothermalHeatPump,
     "chiller"            : Chiller           ,
     "absorption_chiller" : AbsorptionChiller ,
     "district_cooling"   : DistrictCooling   ,
