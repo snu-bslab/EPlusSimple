@@ -890,6 +890,144 @@ class Boiler(SourceSystem):
     
     def __repr__(self) -> str:
         return f"<Boiler {self.name} (ID={self.ID}) at {hex(id(self))}>"
+
+
+class SteamBoiler(SourceSystem):
+    
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+        Fuel.LPG        ,
+        Fuel.OIL        ,
+        Fuel.BIOMASS    ,
+    ]
+    
+    def __init__(self,
+        name:str,
+        fuel           :str|Fuel ,
+        efficiency     :int|float|None=None,
+        capacity       :int|float|None=None,
+        *,
+        ID:str|None=None
+    ) -> SteamBoiler:
+        
+        # user properties
+        self.name = name
+        
+        # fundamental properties        
+        self.fuel            = Fuel(fuel)
+        self.capacity        = None if capacity   is None else capacity
+        self.efficiency      = 0.85 if efficiency is None else efficiency
+        
+        # set default ID if not specified
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.SOURCE_SYSTEM}AUTOID{hex(id(self))}"
+        self.__ID = ID
+    
+    """ fundamental properties
+    """
+    
+    @property
+    def fuel(self) -> Fuel:
+        return self.__fuel
+    
+    @fuel.setter
+    @validate_enum(Fuel)
+    def fuel(self, value: str) -> None:
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for SteamBoiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
+        self.__fuel = value
+    
+    @property
+    def efficiency(self) -> int|float:
+        return self.__efficiency
+    
+    @efficiency.setter
+    @validate_range(min=math.nextafter(0,math.inf), max=1)
+    @validate_type(int, float)
+    def efficiency(self, value: int|float) -> None:
+        self.__efficiency = value
+    
+    @property
+    def capacity(self) -> int|float:
+        return self.__capacity
+    
+    @capacity.setter
+    @validate_range(min=math.nextafter(0,math.inf))
+    @validate_type(int, float, allow_none=True)
+    def capacity(self, value: int|float) -> None:
+        self.__capacity = value
+    
+    """ identity and equality
+    """
+    
+    @property
+    def ID(self) -> str:
+        return self.__ID
+    
+    def __hash__(self) -> int:
+        return hash(self.ID)
+    
+    def __eq__(self, other:SteamBoiler) -> bool:
+        
+        # type validation
+        if not isinstance(other, SteamBoiler):
+            raise TypeError(
+                f"Cannot compare {type(self)} instance with {type(other)} instance"
+            )
+            
+        # two boilers are equal if all fundamental properties are equal
+        return (self.fuel            == other.fuel           ) and\
+               (self.efficiency      == other.efficiency     ) and\
+               (self.capacity        == other.capacity       ) 
+    
+    """ in-out
+    """
+    
+    @staticmethod
+    def from_json(
+        input:SimpleNamespace
+    ) -> SteamBoiler:
+        
+        return SteamBoiler(
+            input.name,
+            input.fuel_type       ,
+            getattr(input,"efficiency", None),
+            getattr(input,"capacity_heating", None),
+            ID = input.id
+        )
+        
+    def to_dragon(self) -> dragon.SteamBoiler:
+        
+        return dragon.SteamBoiler(
+            self.ID,
+            Fuel(self.fuel).to_dragon(),
+            self.efficiency,
+            self.capacity  ,
+            pump_efficiency=0.9,
+        )
+        
+    """ representation
+    """
+    
+    def __str__(self) -> str:
+        
+        
+        # formatting capacity 
+        cap_str = f"{self.capacity*Unit.W_TO_KW:4,.1f}kW" if self.capacity is not None else "autosize"
+        
+        return (
+            f"{self.fuel} SteamBoiler {self.name} (ID={self.ID})\n"
+            f"\t- capacity={cap_str}, eff.={self.efficiency*Unit.FRACTION_TO_PERCENT:.1f}%"
+        )
+    
+    def __repr__(self) -> str:
+        return f"<SteamBoiler {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
 
 class NoneSource(SourceSystem):
@@ -1111,7 +1249,7 @@ class FanCoilUnit(DXIndoorUnit):
         
 class Radiator(SupplySystem):
     
-    _heatable_sources = [Boiler, DistrictHeating]
+    _heatable_sources = [Boiler, SteamBoiler, DistrictHeating]
     _coolable_sources = []
     
     def __init__(self,
@@ -1841,6 +1979,7 @@ SourceSystem.TYPE_MAPPER = {
     "absorption_chiller" : AbsorptionChiller ,
     "district_cooling"   : DistrictCooling   ,
     "boiler"             : Boiler            ,
+    "steam_boiler"       : SteamBoiler       ,
     "district_heating"   : DistrictHeating   ,
 }
 

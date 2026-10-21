@@ -21,7 +21,9 @@
                         "light_density": 10,
                         "supply_system_ids": [
                            "SUPL-0x000000",
-                           "SUPL-0x000002"
+                           "SUPL-0x000002",
+                           "SUPL-0x000004",
+                           "SUPL-0x000005"
                         ],
                         "ventilation_system_assignments": [
 
@@ -396,6 +398,16 @@
 
             ],
             "radiator": [
+                {
+                    "id": "SUPL-0x000004",
+                    "name": "그냥 라디에이터",
+                    "source_system_id": "SRCE-0x000001"
+                },
+                {
+                    "id": "SUPL-0x000005",
+                    "name": "스팀 라디에이터",
+                    "source_system_id": "SRCE-0x000004"
+                }
 
             ],
             "electric_radiator": [
@@ -446,6 +458,15 @@
                     "id": "SRCE-0x000001",
                     "name": "보일러",
                     "fuel_type": "biomass"
+                }
+            ],
+            "steam_boiler": [
+                {
+                    "id": "SRCE-0x000004",
+                    "name": "스팀보일러",
+                    "fuel_type": "lpg",
+                    "efficiency": 0.91,
+                    "capacity" : 3700
                 }
             ],
             "district_heating": [

@@ -34,6 +34,7 @@ from .hvac import (
     DistrictHeating   ,
     DistrictCooling   ,
     Boiler            ,
+    SteamBoiler       ,
     NoneSource        ,
     # etc
     VentilationSystem ,
