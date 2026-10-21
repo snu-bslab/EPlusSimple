@@ -223,7 +223,7 @@ class GreenRetrofitModel:
         return self.__north_axis
     
     @north_axis.setter
-    @validate_range(min=0, max=math.nextafter(360,-math.inf))
+    @validate_range(min=math.nextafter(-360,math.inf), max=math.nextafter(360,-math.inf))
     @validate_type(int, float)
     def north_axis(self, value: int|float) -> None:
         self.__north_axis = value
