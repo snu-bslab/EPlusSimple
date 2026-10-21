@@ -167,6 +167,7 @@
             {
                 "id": "CTSF-0x000000",
                 "name": "외벽",
+                "vintage_layer_position": null,
                 "layers": [
                     {
                         "material_id": "MTRL-0x000002",
@@ -185,6 +186,7 @@
             {
                 "id": "CTSF-0x000001",
                 "name": "바닥",
+                "vintage_layer_position": null,
                 "layers": [
                     {
                         "material_id": "MTRL-0x000004",
@@ -199,6 +201,7 @@
             {
                 "id": "CTSF-0x000002",
                 "name": "천장",
+                "vintage_layer_position": null,
                 "layers": [
                     {
                         "material_id": "MTRL-0x000005",

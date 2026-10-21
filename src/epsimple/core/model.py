@@ -9,10 +9,12 @@ import os
 import re
 import json
 import math
-from copy     import deepcopy
 from types    import SimpleNamespace
-from typing   import Iterable
 from datetime import datetime
+from copy     import (
+    copy    ,
+    deepcopy,
+)
 
 # third-party modules
 import pandas as pd
@@ -554,7 +556,7 @@ class GreenRetrofitModel:
         
         # collect surfaces
         surfaces_by_zone = {
-            zone.ID: zone.surface
+            zone.ID: [copy(srf) for srf in zone.surface]
             for zone in self.zone
         }
         surface_dict = {
@@ -575,12 +577,9 @@ class GreenRetrofitModel:
             Material.get_DB("gypsumboard"), 0.0125,
         )
         dragonized_default_innerwall_construction = default_innerwall_construction.to_dragon()
-        unknown_surfaces = []
         for surface in surface_dict.values():
             
             if surface.construction is UnknownConstruction():
-                unknown_surfaces.append(surface)
-                
                 # interior wall
                 if (surface.type == SurfaceType.WALL) and (surface.boundary == SurfaceBoundaryCondition.ZONE):
                     surface.construction = default_innerwall_construction
@@ -600,6 +599,44 @@ class GreenRetrofitModel:
                     
                     dragonized_construction = regulated_construction.to_dragon()
                     surface_construction_dict[dragonized_construction.name] = dragonized_construction
+            
+            elif surface.construction.vintage_layer_position is not None:
+
+                original = surface.construction
+                position = original.use_regulation_layer
+
+                # 1. 기본 구조체 선택
+                if (surface.type == SurfaceType.WALL and surface.boundary == SurfaceBoundaryCondition.ZONE):
+                    # 내벽: 기존 기본 내벽 구조체 사용
+                    base = default_innerwall_construction
+
+                else:
+                    # 그 외: 기존 unknown 처리와 동일한 조건으로 규정 구조체 조회
+                    base = SurfaceConstruction.get_regulated_construction(
+                        self.vintage,
+                        surface.type,
+                        surface.boundary,
+                        self.climate,
+                        is_radiant_floor=(surface.ID in radiant_floor_list),
+                        is_multifamily_housing=self.is_multifamlily_housing,
+                    )
+
+                # 2. 기본 구조체와 사용자층 결합
+                layers = (
+                    original.layers + base.layers
+                    if position == "inside"
+                    else base.layers + original.layers
+                )
+
+                combined = SurfaceConstruction(
+                    original.name,
+                    *[value for layer in layers for value in layer],
+                    ID=f"{original.ID}:with_regulation:for:{surface.ID}",
+                )
+
+                # 3. 해당 surface에 배정하고 dragon 구조체 등록
+                surface.construction = combined
+                surface_construction_dict[combined.ID] = combined.to_dragon()             
             
         # duplicate surfaces by adjacency
         adjacent_pair       = dict()
@@ -669,10 +706,6 @@ class GreenRetrofitModel:
         }
         for ID in adjacent_pair.keys():
             dragonized_surface_dict[ID].boundary = dragonized_surface_dict[adjacent_pair[ID]]
-        
-        # reset allocated unknowns
-        for surface in unknown_surfaces:
-            surface.construction = UnknownConstruction()
         
         return dragonized_surfaces_by_zone
     

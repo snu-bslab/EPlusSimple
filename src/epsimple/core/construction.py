@@ -9,7 +9,7 @@ import math
 from copy     import deepcopy
 from types    import SimpleNamespace
 from datetime import datetime
-from pathlib  import Path
+from typing   import Literal
 
 # third-party modules
 import pandas as pd
@@ -25,6 +25,7 @@ from idragon.dragon import (
 from idragon.utils import (
     validate_type ,
     validate_range,
+    validate_enum ,
 )
 from ..constants import (
     Unit,
@@ -229,7 +230,8 @@ class SurfaceConstruction:
     def __init__(self,
         name:str,
         *args:Material|int|float,
-        ID:str|None=None
+        ID:str|None=None,
+        vintage_layer_position: Literal["inside","outside"]|None=None,
         ) -> None:
         
         # user properties
@@ -257,6 +259,7 @@ class SurfaceConstruction:
             for material, thickness in zip(materials, thicknesses)
             if thickness > 0
         ]
+        self.vintage_layer_position = self.vintage_layer_position
 
         # set default ID if not specified
         if ID is None:
@@ -277,7 +280,17 @@ class SurfaceConstruction:
     @property
     def heat_capacity(self) -> int|float:
         return sum(material.density*material.specific_heat*thickness for material, thickness in self.layers)
-        
+    
+    @property
+    def use_regulation_layer(self) -> str | None:
+        return self.__use_regulation_layer
+
+
+    @use_regulation_layer.setter
+    @validate_enum("inside","outside", None)
+    def use_regulation_layer(self, value: str | None) -> None:
+        self.__use_regulation_layer = value
+    
     """ useful methods
     """
     
@@ -377,17 +390,27 @@ class SurfaceConstruction:
         # create a construction
         return SurfaceConstruction(
             name,
+            concrete  , concrete_thickness/2,
             insulation, insulation_thickness,
-            concrete  , concrete_thickness  ,
+            concrete  , concrete_thickness/2,
             ID=ID,
         )    
         
     def reversed(self) -> SurfaceConstruction:
         
+        match self.vintage_layer_position:
+            case "inside":
+                reversed_vintage_layer_position = "outside"
+            case "outside":
+                reversed_vintage_layer_position = "outside"
+            case None:
+                reversed_vintage_layer_position = None
+        
         return SurfaceConstruction(
             self.name + "_reversed",
             *sum(self.layers[::-1],start=[]),
-            ID=f"{SpecialTag.FLIP}{self.ID}"
+            ID=f"{SpecialTag.FLIP}{self.ID}",
+            vintage_layer_position=reversed_vintage_layer_position
         )
     
     """ identity and equality
@@ -413,7 +436,8 @@ class SurfaceConstruction:
                all(
                    (self_layer[0] == other_layer[0]) and (self_layer[1] == other_layer[1])
                    for self_layer, other_layer in zip(self.layers, other.layers)
-                )
+                ) and\
+                self.vintage_layer_position == other.vintage_layer_position
     
     """ in-out
     """
@@ -430,7 +454,8 @@ class SurfaceConstruction:
                 [[material_dict[layer.material_id], layer.thickness] for layer in input.layers],
                 start=[]
             ),
-            ID=input.id
+            ID=input.id,
+            vintage_layer_position=input.vintage_layer_position,
         )
             
     def to_dragon(self,
@@ -627,7 +652,8 @@ class SurfaceConstruction:
             "materials":[
                 material.to_dict()
                 for material in self.get_unique_materials().values()
-            ]
+            ],
+            "vintage_layer_position": self.vintage_layer_position if self.vintage_layer_position is not None else "no_use"
         }
     
     def __str__(self) -> str:

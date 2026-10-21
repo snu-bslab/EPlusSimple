@@ -157,7 +157,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 21.6,
                                 "azimuth": 180.0,
-                                "construction_id": "CTSF-0x000000",
+                                "construction_id": "CTSF-0x000003",
                                 "fenestrations": [
                                     {
                                         "id": "FNST-0x000000",
@@ -184,7 +184,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 16.2,
                                 "azimuth": 270.0,
-                                "construction_id": "CTSF-0x000000",
+                                "construction_id": "CTSF-0x000003",
                                 "fenestrations": []
                             },
                             {
@@ -300,6 +300,26 @@
             {
                 "id": "CTSF-0x000000",
                 "name": "외벽",
+                "vintage_layer_position": "inside",
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000002",
+                        "thickness": 0.009
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.066
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.012
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000003",
+                "name": "외벽",
+                "vintage_layer_position": null,
                 "layers": [
                     {
                         "material_id": "MTRL-0x000002",
@@ -318,6 +338,7 @@
             {
                 "id": "CTSF-0x000001",
                 "name": "바닥",
+                "vintage_layer_position": "outside",
                 "layers": [
                     {
                         "material_id": "MTRL-0x000004",
@@ -332,6 +353,7 @@
             {
                 "id": "CTSF-0x000002",
                 "name": "천장",
+                "vintage_layer_position": null,
                 "layers": [
                     {
                         "material_id": "MTRL-0x000005",
