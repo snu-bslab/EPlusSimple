@@ -167,6 +167,7 @@ class AUTOID_PREFIX(str, Enum):
     SUPPLY_SYSTEM  = "SUPL"
     HEAT_EXCHANGER = "ERVT"
     PV_PANEL       = "PVPN"
+    WIND_TURBINE   = "WDTB"
     
     # shape
     SURFACE      = "SURF"

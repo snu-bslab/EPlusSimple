@@ -52,6 +52,7 @@ from . import (
     SupplySystem      ,
     VentilationSystem ,
     PhotoVoltaicSystem,
+    WindTurbineSystem ,
     NoneSource        ,
     # shape
     Surface                 ,
@@ -127,9 +128,10 @@ class GreenRetrofitModel:
         vintage   :list[int]|datetime,
         is_multifamily_housing:bool  ,
         north_axis:int|float         ,
-        zone      :list[Zone]=[],
-        pv        :list[PhotoVoltaicSystem]=[],
-        hotwater  :list[SourceSystem]=[],
+        zone      :list[Zone]=None,
+        pv        :list[PhotoVoltaicSystem]=None,
+        windtb    :list[WindTurbineSystem] = None,
+        hotwater  :list[SourceSystem]=None,
         ) -> None:
         
         # user properties
@@ -142,9 +144,10 @@ class GreenRetrofitModel:
         self.north_axis=north_axis
         
         # child objects
-        self.zone=zone
-        self.pv  =pv
-        self.hotwater=hotwater
+        self.zone    =[] if zone     is None else zone
+        self.pv      =[] if pv       is None else pv
+        self.windtb  =[] if windtb   is None else windtb
+        self.hotwater=[] if hotwater is None else hotwater
         
         # initialization
         self.__source_system = []
@@ -472,9 +475,13 @@ class GreenRetrofitModel:
             ventilation_input.id: VentilationSystem.from_json(ventilation_input)
             for ventilation_input in input.resources.ventilation_systems.energy_recovery_ventilator
         }
-        photovoltaic_systems = {
+        photovoltaic_system_dict = {
             photovoltaic_input.id: PhotoVoltaicSystem.from_json(photovoltaic_input)
             for photovoltaic_input in input.resources.renewable_energy_systems.photovoltaic_panel
+        }
+        windturbine_system_dict = {
+            wind_input.id: WindTurbineSystem.from_json(wind_input)
+            for wind_input in input.resources.renewable_energy_systems.wind_turbine
         }
         
         # create a GreenRetrofitModel
@@ -502,9 +509,15 @@ class GreenRetrofitModel:
         
         # pv panel
         grm.pv = [
-            photovoltaic_systems[assignment.id]
+            photovoltaic_system_dict[assignment.id]
             for assignment in input.building.renewable_energy_system_assignments
-            if assignment.id in photovoltaic_systems.keys()
+            if assignment.id in photovoltaic_system_dict.keys()
+            for _ in range(assignment.count)
+        ]
+        grm.windtb = [
+            windturbine_system_dict[assignment.id]
+            for assignment in input.building.renewable_energy_system_assignments
+            if assignment.id in windturbine_system_dict.keys()
             for _ in range(assignment.count)
         ]
         grm.hotwater = list(source_system_dict[sys_id] for sys_id in input.building.hotwater_source_system_ids)
@@ -736,6 +749,14 @@ class GreenRetrofitModel:
                 pv_dict[pv.ID].area += pv.area
             else:
                 pv_dict[pv.ID] = pv.to_dragon()
+        pv_list = list(pv_dict.values())
+        
+        # windturbine system
+        wt_list = []
+        for index, windturbine_spec in enumerate(self.windtb):
+            each_turbine = windturbine_spec.to_dragon()
+            each_turbine.name += f":{index}"
+            wt_list.append(each_turbine)
         
         # model
         em = idragon.EnergyModel(
@@ -754,7 +775,8 @@ class GreenRetrofitModel:
                 )
                 for zone in self.zone
             ],
-            pv=list(pv_dict.values())
+            pv=pv_list,
+            wt=wt_list,        
         )
         
         return em

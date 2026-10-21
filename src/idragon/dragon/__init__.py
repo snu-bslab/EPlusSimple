@@ -69,5 +69,6 @@ from .hvac import (
     # other systems
     EnergyRecoveryVentilator,
     PhotoVoltaicPanel       ,
+    WindTurbine             ,
 )
     

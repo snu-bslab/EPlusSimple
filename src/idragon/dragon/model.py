@@ -32,6 +32,7 @@ from .hvac import (
     SupplySystem     ,
     SupplyGroup      ,
     PhotoVoltaicPanel,
+    WindTurbine      ,
 )
 from .profile import (
     ScheduleType,
@@ -66,16 +67,18 @@ class EnergyModel:
         name      :str,
         north_axis:int|float=0,
         terrain   :str=Terrain.SUBURBS,
-        zone      :list[Zone]=[],
+        zone      :list[Zone]=None,
         *,
-        pv        :list[PhotoVoltaicPanel]=[],
+        pv        :list[PhotoVoltaicPanel]=None,
+        wt        :list[WindTurbine] = None
         ):
         
         self.name       = name
         self.north_axis = north_axis
         self.terrain    = terrain
-        self.zone       = zone
-        self.pv         = pv
+        self.zone       = zone if zone is not None else []
+        self.pv         = pv   if pv   is not None else []
+        self.wt         = wt   if wt   is not None else []
     
     @property
     def surfaces(self) -> list[Surface]:
@@ -261,9 +264,11 @@ class EnergyModel:
                     )
                 )           
         
-        # PV panel
+        # generators
         for pv in self.pv:
             idf.append(*pv.to_idf_object())
+        for wt in self.wt:
+            idf.append(*wt.to_idf_object())
         
         return idf
     

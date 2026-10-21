@@ -36,6 +36,7 @@ from .hvac import (
     # etc
     VentilationSystem ,
     PhotoVoltaicSystem,
+    WindTurbineSystem ,
 )
 from .shape import (
     Surface  ,

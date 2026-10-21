@@ -3646,6 +3646,225 @@ class PhotoVoltaicPanel:
     def __str__(self) -> str:
         return f"{self.area:.1f}m2 PhotovoltaicPanel {self.name} (tilt={self.tilt:.1f}°, azim.={self.azimuth:.1f}°, eff.={self.efficiency*Unit.NONE2PRC:.1f}%)" 
     
+
+class WindTurbine:
+    """Capacity-normalized wind turbine preset for EnergyPlus 24.2.0.
+
+    Capacity is the net electrical output in W. The geometry and aerodynamic
+    parameters are representative assumptions, not manufacturer specifications.
+
+    Revalidate this preset before supporting other EnergyPlus versions,
+    especially the vertical-axis angle and system-efficiency calculations.
+    """
+
+    def __init__(
+        self,
+        name: str,
+        capacity: int | float,
+        type: str,
+    ) -> None:
+
+        self.name = name
+        self.capacity = capacity
+        self.type = type
+
+    @property
+    def capacity(self) -> int | float:
+        return self.__capacity
+
+    @capacity.setter
+    @validate_type(int, float)
+    def capacity(self, value: int | float) -> None:
+
+        if isinstance(value, bool):
+            raise TypeError(
+                "capacity must be a positive finite number in W."
+            )
+
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(
+                "capacity must be a positive finite number in W."
+            )
+
+        self.__capacity = value
+
+    @property
+    def type(self) -> str:
+        return self.__type
+
+    @type.setter
+    @validate_type(str)
+    @validate_enum("horizontal", "vertical")
+    def type(self, value: str) -> None:
+        self.__type = value
+
+    def to_idf_object(self) -> list[IdfObject]:
+
+        density = 1.225
+        efficiency = 0.835
+        rated_wind_speed = 11.0
+        number_of_blades = 3
+
+        is_horizontal = self.type == "horizontal"
+
+        tip_speed_ratio = 5.0 if is_horizontal else 3.0
+        power_coefficient = 0.25 if is_horizontal else 0.20
+
+        # Representative rotor geometry from the net electrical capacity.
+        swept_area = self.capacity / (
+            0.5
+            * density
+            * efficiency
+            * power_coefficient
+            * rated_wind_speed**3
+        )
+
+        if is_horizontal:
+            rotor_diameter = math.sqrt(
+                4.0 * swept_area / math.pi
+            )
+        else:
+            # Straight-bladed rotor:
+            # swept area = D * H, with H/D = 1.5.
+            rotor_diameter = math.sqrt(
+                swept_area / 1.5
+            )
+
+        rotor_speed = (
+            60.0
+            * tip_speed_ratio
+            * rated_wind_speed
+            / (math.pi * rotor_diameter)
+        )
+
+        turbine_name = f"WindTurbine:{self.name}"
+        generator_list_name = f"Generator4WindTurbine:{self.name}"
+
+        turbine_fields = {
+            "Name": turbine_name,
+            "Availability Schedule Name": "ALLON",
+            "Rotor Type": (
+                "HorizontalAxisWindTurbine"
+                if is_horizontal
+                else "VerticalAxisWindTurbine"
+            ),
+            "Power Control": "VariableSpeedFixedPitch",
+            "Rated Rotor Speed": rotor_speed,
+            "Rotor Diameter": rotor_diameter,
+
+            # Height used for local wind speed and air density.
+            "Overall Height": 10.0,
+
+            "Number of Blades": number_of_blades,
+
+            # EnergyPlus applies system efficiency after the power limit.
+            "Rated Power": self.capacity / efficiency,
+
+            "Rated Wind Speed": rated_wind_speed,
+            "Cut In Wind Speed": 3.5 if is_horizontal else 3.0,
+            "Cut Out Wind Speed": 25.0,
+            "Fraction system Efficiency": efficiency,
+            "Maximum Tip Speed Ratio": tip_speed_ratio,
+        }
+
+        if is_horizontal:
+
+            turbine_fields["Maximum Power Coefficient"] = (
+                power_coefficient
+            )
+
+        else:
+
+            induced_velocity_ratio = 2.0 / 3.0
+            azimuth = math.pi / 6.0
+            drag_coefficient = 0.05
+            lift_coefficient = 0.9
+
+            angle_of_attack = math.atan(
+                induced_velocity_ratio * math.sin(azimuth)
+                / (
+                    tip_speed_ratio
+                    + induced_velocity_ratio * math.cos(azimuth)
+                )
+            )
+
+            # Match EnergyPlus 24.2.0 WindTurbine.cc:
+            # atan returns radians, but the source multiplies by
+            # DegToRadians again before computing force coefficients.
+            source_angle = math.radians(angle_of_attack)
+
+            tangential_coefficient = abs(
+                lift_coefficient * math.sin(source_angle)
+                - drag_coefficient * math.cos(source_angle)
+            )
+
+            blade_chord_area = self.capacity / (
+                efficiency
+                * 0.5
+                * density
+                * number_of_blades
+                * tangential_coefficient
+                * tip_speed_ratio
+                * (
+                    tip_speed_ratio**2
+                    + induced_velocity_ratio**2
+                )
+                * rated_wind_speed**3
+            )
+
+            turbine_fields.update({
+                "Blade Chord Area": blade_chord_area,
+                "Blade Drag Coefficient": drag_coefficient,
+                "Blade Lift Coefficient": lift_coefficient,
+            })
+
+        # Leave C1-C6 and local mean wind fields blank.
+        # Filling the C1-C6 defaults would select a different HAWT model.
+        
+        turbine_objs = [
+            IdfObject(
+                "Generator:WindTurbine",
+                turbine_fields,
+                version=(24, 2, 0),
+                ignore_default=True,
+            ),
+        ]
+        
+        demand_objs = [
+            IdfObject(
+                "ElectricLoadCenter:Generators",
+                [
+                    generator_list_name,
+                    turbine_name,
+                    "Generator:WindTurbine",
+                    self.capacity,
+                    "ALLON",
+                ],
+                version=(24, 2, 0),
+                ignore_default=True,
+            ),
+            IdfObject(
+                "ElectricLoadCenter:Distribution",
+                {
+                    "Name": f"Distribution4WindTurbine:{self.name}",
+                    "Generator List Name": generator_list_name,
+                    "Generator Operation Scheme Type": "Baseload",
+                    "Electrical Buss Type": "AlternatingCurrent",
+                },
+                version=(24, 2, 0),
+                ignore_default=True,
+            ),
+        ]
+        
+        return turbine_objs + demand_objs
+
+    def __str__(self) -> str:
+
+        return (
+            f"{self.capacity:.1f}W WindTurbine "
+            f"{self.name} ({self.type})"
+        )
+    
     
     
     

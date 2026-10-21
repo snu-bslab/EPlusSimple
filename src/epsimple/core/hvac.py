@@ -1791,7 +1791,91 @@ class PhotoVoltaicSystem:
     def __repr__(self) -> str:
         return f"<PhotoVoltaicSystem {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
-    
+
+class WindTurbineSystem:
+    """Wind turbine product with net rated electrical capacity in W."""
+
+    def __init__(
+        self,
+        name: str,
+        capacity: int | float,
+        type: str,
+        *,
+        ID: str | None = None,
+    ) -> None:
+
+        self.name = name
+        self.capacity = capacity
+        self.type = type
+
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.WIND_TURBINE}AUTOID{hex(id(self))}"
+
+        self.__ID = ID
+
+    @property
+    def capacity(self) -> int | float:
+        return self.__capacity
+
+    @capacity.setter
+    @validate_type(int, float)
+    def capacity(self, value: int | float) -> None:
+
+        if isinstance(value, bool):
+            raise TypeError("capacity must be a number, not bool.")
+
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(
+                "capacity must be finite and greater than zero."
+            )
+
+        self.__capacity = value
+
+    @property
+    def type(self) -> str:
+        return self.__type
+
+    @type.setter
+    @validate_type(str)
+    @validate_enum("horizontal", "vertical")
+    def type(self, value: str) -> None:
+        self.__type = value
+
+    @property
+    def ID(self) -> str:
+        return self.__ID
+
+    @staticmethod
+    def from_json(input: SimpleNamespace) -> WindTurbineSystem:
+
+        return WindTurbineSystem(
+            input.name,
+            input.capacity,
+            input.type,
+            ID=input.id,
+        )
+
+    def to_dragon(self) -> dragon.WindTurbine:
+
+        return dragon.WindTurbine(
+            name=self.ID,
+            capacity=self.capacity,
+            type=self.type,
+        )
+
+    def __str__(self) -> str:
+
+        return (
+            f"{self.capacity:.1f}W {self.type} wind turbine "
+            f"{self.name} (ID={self.ID})"
+        )
+
+    def __repr__(self) -> str:
+
+        return (
+            f"<WindTurbineSystem {self.name} "
+            f"(ID={self.ID}) at {hex(id(self))}>"
+        )
     
 # ---------------------------------------------------------------------------- #
 #                                 CHILD CLASSES                                #
