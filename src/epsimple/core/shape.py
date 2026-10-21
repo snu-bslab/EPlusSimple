@@ -293,15 +293,15 @@ class Surface:
                     if self.ID.startswith(SpecialTag.CLONE.value):
                         azimuth_radian = (azimuth_radian + math.pi) % (2*math.pi)
                         
-                x = math.cos(azimuth_radian - 3/2*math.pi) * width/2
-                y = math.sin(azimuth_radian - 3/2*math.pi) * width/2
+                x = math.cos(azimuth_radian) * width/2
+                y = math.sin(azimuth_radian) * width/2
                 z = zone_height
                 
                 return [
-                    dragon.Vertex( x, -y, z),
-                    dragon.Vertex( x, -y, 0),
-                    dragon.Vertex(-x,  y, 0),
-                    dragon.Vertex(-x,  y, z),
+                    dragon.Vertex( x,  y, z),
+                    dragon.Vertex( x,  y, 0),
+                    dragon.Vertex(-x, -y, 0),
+                    dragon.Vertex(-x, -y, z),
                 ]
     
     @staticmethod
