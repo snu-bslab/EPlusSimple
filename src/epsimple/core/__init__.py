@@ -20,6 +20,7 @@ from .hvac import (
     # supply systems
     SupplySystem          ,
     DXIndoorUnit          ,
+    FanCoilUnit           ,
     Radiator              ,
     ElectricRadiator      ,
     RadiantFloor          ,
@@ -30,6 +31,7 @@ from .hvac import (
     Chiller           ,
     AbsorptionChiller ,
     DistrictHeating   ,
+    DistrictCooling   ,
     Boiler            ,
     NoneSource        ,
     # etc

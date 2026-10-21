@@ -49,6 +49,7 @@ from . import (
     SourceSystem      ,
     Boiler            ,
     DistrictHeating   ,
+    DistrictCooling   ,
     SupplySystem      ,
     VentilationSystem ,
     PhotoVoltaicSystem,
@@ -930,8 +931,10 @@ class GreenRetrofitResult:
             df_site.loc[fuel, "hotwater"] = energy
             
         # district heating and cooling
-        df_site.loc[Fuel.DISTRICTHEATING.name, "heating"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTHEATINGWATER:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
-        df_site.loc[Fuel.DISTRICTCOOLING.name, "cooling"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTCOOLING:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+        if len([sys for sys in self.model.source_system if isinstance(sys, DistrictHeating)]) > 0:
+            df_site.loc[Fuel.DISTRICTHEATING.name, "heating"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTHEATINGWATER:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+        if len([sys for sys in self.model.source_system if isinstance(sys, DistrictCooling)]) > 0:
+            df_site.loc[Fuel.DISTRICTCOOLING.name, "cooling"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTCOOLING:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
 
         # On-site PV generation used within the facility
         table_name = "ELECTRICITYBALANCEMONTHLY"

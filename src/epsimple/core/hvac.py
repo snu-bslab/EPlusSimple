@@ -56,11 +56,10 @@ class Fuel(str, Enum):
                 return dragon.Fuel.DIESEL
             case Fuel.BIOMASS:
                 return dragon.Fuel.COAL
-            case Fuel.DISTRICTHEATING:
-                return dragon.Fuel.OTHERFUEL1
-            case Fuel.DISTRICTCOOLING:
-                return dragon.Fuel.OTHERFUEL2
-
+            case _:
+                raise NotImplementedError(
+                    f"Fuel {self.value} is not expected to be converted into dragon fuel."
+                )
 
 class SourceSystem:
     TYPE_MAPPER={}
