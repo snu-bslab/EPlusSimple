@@ -38,8 +38,9 @@ from . import (
     # construction
     Material                ,
     SurfaceConstruction     ,
-    OpenConstruction         ,
-    UnknownConstruction     ,
+    OpenConstruction        ,
+    VintageConstruction     ,
+    CurrentConstruction     ,
     FenestrationConstruction,
     # profile
     Profile,
@@ -118,9 +119,10 @@ def address_to_weather(
     weather_location = sigungu_info["기상지역명"]
     weather_filepath = Directory.WEATHER_DATA_DIR /  sigungu_info["EPW파일명"]
     
-    climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
+    vintage_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
+    current_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= datetime.now().strftime(r"%Y%m%d"))]
     
-    return terrain, climate, weather_location, weather_filepath
+    return terrain, vintage_climate, current_climate, weather_location, weather_filepath
 
 
 class GreenRetrofitModel:
@@ -165,10 +167,11 @@ class GreenRetrofitModel:
     @address.setter
     def address(self, value:str) -> None:
         
-        terrain, climate, weather_location, weather_filepath = address_to_weather(value, self.vintage)
+        terrain, vintage_climate, current_climate, weather_location, weather_filepath = address_to_weather(value, self.vintage)
         
         self.__terrain = terrain
-        self.__climate = climate
+        self.__vintage_climate = vintage_climate
+        self.__current_climate = current_climate
         self.__weather = weather_location
         self.__weather_filepath = weather_filepath
         self.__address = value       
@@ -176,8 +179,12 @@ class GreenRetrofitModel:
         return
     
     @property
-    def climate(self) -> str:
-        return self.__climate
+    def vintage_climate(self) -> str:
+        return self.__vintage_climate
+    
+    @property
+    def current_climate(self) -> str:
+        return self.__current_climate
     
     @property
     def terrain(self) -> str:
@@ -280,12 +287,21 @@ class GreenRetrofitModel:
             
             areasum += wall.area
             
-            if wall.construction is UnknownConstruction():
+            if wall.construction is VintageConstruction():
                 UAsum += wall.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     wall.type    ,
                     wall.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif wall.construction is CurrentConstruction():
+                UAsum += wall.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()   ,
+                    wall.type    ,
+                    wall.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -306,12 +322,21 @@ class GreenRetrofitModel:
         for roof in self.exteriorroofs:
             areasum += roof.area
             
-            if roof.construction is UnknownConstruction():
+            if roof.construction is VintageConstruction():
                 UAsum += roof.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     roof.type    ,
                     roof.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif roof.construction is CurrentConstruction():
+                UAsum += roof.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()   ,
+                    roof.type    ,
+                    roof.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -332,12 +357,21 @@ class GreenRetrofitModel:
         for floor in self.exteriorfloors:
             areasum += floor.area
             
-            if floor.construction is UnknownConstruction():
+            if floor.construction is VintageConstruction():
                 UAsum += floor.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     floor.type    ,
                     floor.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif floor.construction is VintageConstruction():
+                UAsum += floor.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()    ,
+                    floor.type    ,
+                    floor.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -455,7 +489,8 @@ class GreenRetrofitModel:
         
         # special constructions
         surface_construction_dict["open"]    = OpenConstruction()
-        surface_construction_dict["unknown"] = UnknownConstruction()
+        surface_construction_dict["vintage_regulation"] = VintageConstruction()
+        surface_construction_dict["current_regulation"] = CurrentConstruction()
         
         # profile
         profile_dict = {
@@ -569,7 +604,7 @@ class GreenRetrofitModel:
             if any(isinstance(sys, RadiantFloor|ElectricRadiantFloor) for sys in zone.supply_systems)
         ], start=[])
         
-        # resolve unknown constructions
+        # resolve vintage based constructions
         default_innerwall_construction = SurfaceConstruction(
             f"{SpecialTag.SPECIAL}DefaultInnerWallConstruction",
             Material.get_DB("gypsumboard"), 0.0125, 
@@ -579,7 +614,7 @@ class GreenRetrofitModel:
         dragonized_default_innerwall_construction = default_innerwall_construction.to_dragon()
         for surface in surface_dict.values():
             
-            if surface.construction is UnknownConstruction():
+            if surface.construction is VintageConstruction():
                 # interior wall
                 if (surface.type == SurfaceType.WALL) and (surface.boundary == SurfaceBoundaryCondition.ZONE):
                     surface.construction = default_innerwall_construction
@@ -591,7 +626,7 @@ class GreenRetrofitModel:
                         self.vintage    ,
                         surface.type    ,
                         surface.boundary,
-                        self.climate    ,
+                        self.vintage_climate    ,
                         is_radiant_floor      =(surface.ID in radiant_floor_list),
                         is_multifamily_housing=self.is_multifamlily_housing,
                     )
@@ -600,10 +635,31 @@ class GreenRetrofitModel:
                     dragonized_construction = regulated_construction.to_dragon()
                     surface_construction_dict[dragonized_construction.name] = dragonized_construction
             
-            elif surface.construction.vintage_layer_position is not None:
+            elif surface.construction is CurrentConstruction():
+                # interior wall
+                if (surface.type == SurfaceType.WALL) and (surface.boundary == SurfaceBoundaryCondition.ZONE):
+                    surface.construction = default_innerwall_construction
+                    surface_construction_dict[dragonized_default_innerwall_construction.name] = dragonized_default_innerwall_construction
+                
+                # exterior wall / roof / floor
+                else:            
+                    regulated_construction = SurfaceConstruction.get_regulated_construction(
+                        datetime.now(),
+                        surface.type    ,
+                        surface.boundary,
+                        self.current_climate    ,
+                        is_radiant_floor      =(surface.ID in radiant_floor_list),
+                        is_multifamily_housing=self.is_multifamlily_housing,
+                    )
+                    surface.construction = regulated_construction
+                    
+                    dragonized_construction = regulated_construction.to_dragon()
+                    surface_construction_dict[dragonized_construction.name] = dragonized_construction
+            
+            elif (surface.construction is not OpenConstruction()) and (surface.construction.vintage_layer_position is not None):
 
                 original = surface.construction
-                position = original.use_regulation_layer
+                position = original.vintage_layer_position
 
                 # 1. 기본 구조체 선택
                 if (surface.type == SurfaceType.WALL and surface.boundary == SurfaceBoundaryCondition.ZONE):
@@ -616,7 +672,7 @@ class GreenRetrofitModel:
                         self.vintage,
                         surface.type,
                         surface.boundary,
-                        self.climate,
+                        self.vintage_climate,
                         is_radiant_floor=(surface.ID in radiant_floor_list),
                         is_multifamily_housing=self.is_multifamlily_housing,
                     )
@@ -719,7 +775,7 @@ class GreenRetrofitModel:
         surface_construction_dict = {
             k: v.to_dragon(material_dict=material_dict)
             for k, v in self.get_unique_surface_constructions().items()
-            if not isinstance(v, UnknownConstruction)
+            if (isinstance(v, SurfaceConstruction) and v.vintage_layer_position is None) or isinstance(v, OpenConstruction)
         }
         fenestration_construction_dict = {
             k: v.to_dragon()

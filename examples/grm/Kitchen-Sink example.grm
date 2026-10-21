@@ -127,7 +127,7 @@
                                 "type": "floor",
                                 "boundary_condition": "ground",
                                 "area": 48.0,
-                                "construction_id": "CTSF-0x000001",
+                                "construction_id": "current_regulation",
                                 "fenestrations": []
                             },
                             {
@@ -137,7 +137,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 21.6,
                                 "azimuth": 0.0,
-                                "construction_id": "unknown",
+                                "construction_id": "vintage_regulation",
                                 "fenestrations": []
                             },
                             {
@@ -194,7 +194,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 48.0,
                                 "coolroof_reflectance": 0.7,
-                                "construction_id": "CTSF-0x000002",
+                                "construction_id": "current_regulation",
                                 "fenestrations": []
                             }
                         ]

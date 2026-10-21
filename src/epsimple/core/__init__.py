@@ -6,8 +6,9 @@
 from .construction import (
     Material                ,
     SurfaceConstruction     ,
-    OpenConstruction         ,
-    UnknownConstruction     ,
+    OpenConstruction        ,
+    VintageConstruction     ,
+    CurrentConstruction     ,
     FenestrationConstruction,
 )
 from .profile import (

@@ -259,7 +259,7 @@ class SurfaceConstruction:
             for material, thickness in zip(materials, thicknesses)
             if thickness > 0
         ]
-        self.vintage_layer_position = self.vintage_layer_position
+        self.vintage_layer_position = vintage_layer_position
 
         # set default ID if not specified
         if ID is None:
@@ -282,14 +282,14 @@ class SurfaceConstruction:
         return sum(material.density*material.specific_heat*thickness for material, thickness in self.layers)
     
     @property
-    def use_regulation_layer(self) -> str | None:
-        return self.__use_regulation_layer
+    def vintage_layer_position(self) -> str | None:
+        return self.__vintage_layer_position
 
 
-    @use_regulation_layer.setter
+    @vintage_layer_position.setter
     @validate_enum("inside","outside", None)
-    def use_regulation_layer(self, value: str | None) -> None:
-        self.__use_regulation_layer = value
+    def vintage_layer_position(self, value: str | None) -> None:
+        self.__vintage_layer_position = value
     
     """ useful methods
     """
@@ -402,7 +402,7 @@ class SurfaceConstruction:
             case "inside":
                 reversed_vintage_layer_position = "outside"
             case "outside":
-                reversed_vintage_layer_position = "outside"
+                reversed_vintage_layer_position = "inside"
             case None:
                 reversed_vintage_layer_position = None
         
@@ -690,16 +690,30 @@ class OpenConstruction(SpecialConstruction):
         return dragon.AirBoundary("DefaultAirBoundary")
     
     
-class UnknownConstruction(SpecialConstruction):
+class VintageConstruction(SpecialConstruction):
     
     # ID for singleton instance
-    ID = f"{SpecialTag.SPECIAL}{AUTOID_PREFIX.SURFACE_CONSTRUCTION}UNKNOWN"
+    ID = f"{SpecialTag.SPECIAL}{AUTOID_PREFIX.SURFACE_CONSTRUCTION}VINTAGE_REGULATION"
     
     # unknown constructions cannot be converted to a dragon object
     # they must be resolved into a specific construction using regulation DB
     def to_dragon(self, *, material_dict:dict[str, dragon.Material]=dict()) -> None:
         return None
 
+
+class CurrentConstruction(SpecialConstruction):
+
+    _instance = None
+
+    ID = f"{SpecialTag.SPECIAL}{AUTOID_PREFIX.SURFACE_CONSTRUCTION}CURRENT_REGULATION"
+
+    def to_dragon(
+        self,
+        *,
+        material_dict: dict[str, dragon.Material] = dict(),
+    ) -> None:
+        return None
+    
 
 class FenestrationConstruction:
     

@@ -26,7 +26,8 @@ from .construction import (
     Material           ,
     SurfaceConstruction,
     FenestrationConstruction,
-    UnknownConstruction,
+    VintageConstruction,
+    CurrentConstruction,
     OpenConstruction    ,
 )
 from .profile      import (
@@ -175,7 +176,7 @@ class Surface:
         return self.__construction
     
     @construction.setter
-    @validate_type(SurfaceConstruction, UnknownConstruction, OpenConstruction)
+    @validate_type(SurfaceConstruction, VintageConstruction, CurrentConstruction, OpenConstruction)
     def construction(self, value:SurfaceConstruction) -> None:
         self.__construction = value
     
@@ -317,7 +318,7 @@ class Surface:
             case "open": 
                 construction = OpenConstruction()
             case None:
-                construction = UnknownConstruction()
+                construction = VintageConstruction()
             case _:
                 construction = surface_construction_dict.get(input.construction_id)
         
