@@ -79,7 +79,9 @@ class Site2Source(float, Enum): # kWh -> kWh
     NATURALGAS      = 1.1
     LPG             = 1.1
     OIL             = 1.1 
+    BIOMASS         = 1.1
     DISTRICTHEATING = 0.728 
+    DISTRICTCOOLING = 0.937
     
     
 class Site2CO2(float, Enum): # kWh -> kgCO2eq
@@ -88,7 +90,9 @@ class Site2CO2(float, Enum): # kWh -> kgCO2eq
     NATURALGAS      = 0.2024
     LPG             = 0.2326
     OIL             = 0.2603
+    BIOMASS         = 0.0271
     DISTRICTHEATING = 0.1358
+    DISTRICTCOOLING = 0.1054
     
     
 class Site2Cost(float, Enum): # kWh -> won
@@ -97,8 +101,9 @@ class Site2Cost(float, Enum): # kWh -> won
     NATURALGAS      =  78.12
     LPG             = 184.89
     OIL             = 141.92
+    BIOMASS         = 212.78
     DISTRICTHEATING =  94.98
-    
+    DISTRICTCOOLING =  89.58 
     
 
 # ---------------------------------------------------------------------------- #
@@ -162,6 +167,7 @@ class AUTOID_PREFIX(str, Enum):
     SUPPLY_SYSTEM  = "SUPL"
     HEAT_EXCHANGER = "ERVT"
     PV_PANEL       = "PVPN"
+    WIND_TURBINE   = "WDTB"
     
     # shape
     SURFACE      = "SURF"

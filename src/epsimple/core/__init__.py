@@ -6,8 +6,9 @@
 from .construction import (
     Material                ,
     SurfaceConstruction     ,
-    OpenConstruction         ,
-    UnknownConstruction     ,
+    OpenConstruction        ,
+    VintageConstruction     ,
+    CurrentConstruction     ,
     FenestrationConstruction,
 )
 from .profile import (
@@ -19,8 +20,8 @@ from .hvac import (
     Fuel,
     # supply systems
     SupplySystem          ,
-    PackagedAirConditioner,
-    AirHandlingUnit       ,
+    DXIndoorUnit          ,
+    FanCoilUnit           ,
     Radiator              ,
     ElectricRadiator      ,
     RadiantFloor          ,
@@ -28,15 +29,17 @@ from .hvac import (
     # source systems
     SourceSystem      ,
     HeatPump          ,
-    GeothermalHeatPump,
     Chiller           ,
     AbsorptionChiller ,
     DistrictHeating   ,
+    DistrictCooling   ,
     Boiler            ,
+    SteamBoiler       ,
     NoneSource        ,
     # etc
     VentilationSystem ,
     PhotoVoltaicSystem,
+    WindTurbineSystem ,
 )
 from .shape import (
     Surface  ,

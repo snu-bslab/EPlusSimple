@@ -26,7 +26,8 @@ from .construction import (
     Material           ,
     SurfaceConstruction,
     FenestrationConstruction,
-    UnknownConstruction,
+    VintageConstruction,
+    CurrentConstruction,
     OpenConstruction    ,
 )
 from .profile      import (
@@ -175,7 +176,7 @@ class Surface:
         return self.__construction
     
     @construction.setter
-    @validate_type(SurfaceConstruction, UnknownConstruction, OpenConstruction)
+    @validate_type(SurfaceConstruction, VintageConstruction, CurrentConstruction, OpenConstruction)
     def construction(self, value:SurfaceConstruction) -> None:
         self.__construction = value
     
@@ -317,7 +318,7 @@ class Surface:
             case "open": 
                 construction = OpenConstruction()
             case None:
-                construction = UnknownConstruction()
+                construction = VintageConstruction()
             case _:
                 construction = surface_construction_dict.get(input.construction_id)
         
@@ -778,12 +779,20 @@ class Zone:
         input:SimpleNamespace,
         surface_construction_dict     :dict[str, SurfaceConstruction],
         fenestration_construction_dict:dict[str, FenestrationConstruction],
+        profile_dict                  :dict[str, Profile],
         supply_system_dict     :dict[str, SupplySystem     ],
         ventilation_system_dict:dict[str, VentilationSystem],
         ) -> Zone:
         
+        # profile
+        if input.profile != "CUSTOM":
+            profile = Profile._DB[input.profile]
+        else:
+            profile = profile_dict[input.profile_id]
+        
+        # ventilation
         ventilation_systems = []
-        for vent_sys in input.ventilation_systems:
+        for vent_sys in input.ventilation_system_assignments:
             for _ in range(vent_sys.count):
                 ventilation_systems.append(ventilation_system_dict.get(vent_sys.id))
         
@@ -791,7 +800,7 @@ class Zone:
             input.name,
             input.height,
             [Surface.from_json(surf_input, surface_construction_dict, fenestration_construction_dict) for surf_input in input.surfaces],
-            Profile._DB[input.profile],
+            profile,
             input.light_density,
             [supply_system_dict[sys_id] for sys_id in input.supply_system_ids],
             ventilation_systems,

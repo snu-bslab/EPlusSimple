@@ -8,7 +8,6 @@ from __future__ import annotations
 import math
 from enum   import Enum
 from types  import SimpleNamespace
-from typing import Any
 
 # third-party modules
 
@@ -37,7 +36,9 @@ class Fuel(str, Enum):
     NATURALGAS      = "natural_gas"
     LPG             = "lpg"
     OIL             = "oil"
+    BIOMASS         = "biomass"
     DISTRICTHEATING = "district_heating"
+    DISTRICTCOOLING = "district_cooling"
     
     def __str__(self) -> str:
         return self.value
@@ -53,15 +54,24 @@ class Fuel(str, Enum):
                 return dragon.Fuel.PROPANE
             case Fuel.OIL:
                 return dragon.Fuel.DIESEL
-            case Fuel.DISTRICTHEATING:
-                return dragon.Fuel.OTHERFUEL1
-
+            case Fuel.BIOMASS:
+                return dragon.Fuel.COAL
+            case _:
+                raise NotImplementedError(
+                    f"Fuel {self.value} is not expected to be converted into dragon fuel."
+                )
 
 class SourceSystem:
     TYPE_MAPPER={}
     
 
 class HeatPump(SourceSystem):
+    
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+        Fuel.LPG        ,
+    ]
     
     def __init__(self,
         name:str,
@@ -78,7 +88,7 @@ class HeatPump(SourceSystem):
         self.name = name
         
         # fundamental properties (w/ default values)
-        self.fuel = fuel
+        self.fuel = Fuel(fuel)
         self.heating_cop      = 3.0  if heating_cop      is None else heating_cop
         self.cooling_cop      = 3.0  if cooling_cop      is None else cooling_cop
         self.heating_capacity = None if heating_capacity is None else heating_capacity
@@ -93,12 +103,19 @@ class HeatPump(SourceSystem):
     """
     
     @property
-    def fuel(self) -> str:
-        return str(self.__fuel)
+    def fuel(self) -> Fuel:
+        return self.__fuel
     
     @fuel.setter
     @validate_enum(Fuel)
     def fuel(self, value: str) -> None:
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for HeatPump: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
         self.__fuel = value
     
     @property
@@ -188,7 +205,7 @@ class HeatPump(SourceSystem):
         
         return dragon.HeatPump(
             self.ID,
-            Fuel(self.fuel).to_dragon(),
+            self.fuel.to_dragon(),
             self.heating_cop,
             self.cooling_cop,
             self.heating_capacity,
@@ -212,56 +229,6 @@ class HeatPump(SourceSystem):
     
     def __repr__(self) -> str:
         return f"<HeatPump {self.name} (ID={self.ID}) at {hex(id(self))}>"
-    
-
-class GeothermalHeatPump(HeatPump):
-    
-    """ in-out
-    """
-    
-    @staticmethod
-    def from_json(
-        input:SimpleNamespace
-        ) -> GeothermalHeatPump:
-        
-        return GeothermalHeatPump(
-            input.name,
-            input.fuel_type,
-            getattr(input, "cop_heating", None),
-            getattr(input, "cop_cooling", None),
-            getattr(input, "capacity_heating", None),
-            getattr(input, "capacity_cooling", None),
-            ID=input.id
-        )
-        
-    def to_dragon(self):
-        
-        return dragon.HeatPump(
-            self.ID,
-            Fuel(self.fuel).to_dragon(),
-            self.heating_cop,
-            self.cooling_cop,
-            self.heating_capacity,
-            self.cooling_capacity,
-        )
-        
-    """ representation
-    """
-    
-    def __str__(self) -> str:
-        
-        # formatting capacity
-        heating_cap_str = f"{self.heating_capacity*Unit.W_TO_KW:4,.1f}kW" if self.heating_capacity is not None else "autosize"
-        cooling_cap_str = f"{self.cooling_capacity*Unit.W_TO_KW:4,.1f}kW" if self.cooling_capacity is not None else "autosize"
-        
-        return (
-            f"{self.fuel} GeothermalHeatPump {self.name} (ID={self.ID})\n"
-            f"\t- heating capacity={heating_cap_str}, COP={self.heating_cop:4.2f}\n"
-            f"\t- cooling capacity={cooling_cap_str}, COP={self.cooling_cop:4.2f}"
-        )
-    
-    def __repr__(self) -> str:
-        return f"<GeothermalHeatPump {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
 
 class CompressorType(str, Enum):
@@ -490,6 +457,14 @@ class Chiller(SourceSystem):
     
 class AbsorptionChiller(SourceSystem):
     
+    SUPPORTED_BOILER_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS,
+        Fuel.LPG       ,
+        Fuel.OIL       ,
+        Fuel.BIOMASS   ,
+    ]
+    
     def __init__(self,
         name:str     ,
         cop     :int|float|None=None,
@@ -550,6 +525,21 @@ class AbsorptionChiller(SourceSystem):
     @validate_type(int, float, allow_none=True)
     def boiler_efficiency(self, value: int|float) -> None:
         self.__boiler_efficiency = value
+        
+    @property
+    def boiler_fuel(self) -> Fuel:
+        return self.__boiler_fuel
+    
+    @boiler_fuel.setter
+    @validate_enum(Fuel)
+    def boiler_fuel(self, value: str) -> None:
+        if value not in self.SUPPORTED_BOILER_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for AbsorptionChiller boiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_BOILER_FUELS]}"
+            )
+        
+        self.__boiler_fuel = value
         
     """ identity and equality
     """
@@ -634,7 +624,6 @@ class DistrictHeating(SourceSystem):
     
     def __init__(self,
         name:str,
-        hotwater_supply:bool,
         *,
         ID:str|None=None
         ) -> None:
@@ -642,25 +631,10 @@ class DistrictHeating(SourceSystem):
         # user properties
         self.name = name
         
-        # fundamental properties
-        self.hotwater_supply = hotwater_supply
-        
         # set default ID if not specified
         if ID is None:
             ID = f"{AUTOID_PREFIX.SOURCE_SYSTEM}AUTOID{hex(id(self))}"
         self.__ID = ID
-        
-    """ fundamental properties
-    """
-    
-    @property
-    def hotwater_supply(self) -> bool:
-        return self.__hotwater_supply
-    
-    @hotwater_supply.setter
-    @validate_type(bool)
-    def hotwater_supply(self, value:bool) -> None:
-        self.__hotwater_supply = value
     
     """ identity and equality
     """
@@ -680,8 +654,8 @@ class DistrictHeating(SourceSystem):
                 f"Cannot compare {type(self)} instance with {type(other)} instance"
             )
             
-        # two district heating systems are equal if both are used for the hot water system, or if neither is used.
-        return (self.hotwater_supply == other.hotwater_supply)
+        # two district heating systems are always equal
+        return True
     
     """ in-out
     """
@@ -693,43 +667,108 @@ class DistrictHeating(SourceSystem):
     
         return DistrictHeating(
             input.name,
-            input.hotwater_supply,
             ID=input.id
         )
     
     def to_dragon(self):
         
-        return dragon.Boiler(
+        return dragon.DistrictHeating(
             self.ID,
-            Fuel.DISTRICTHEATING.to_dragon(),
-            1.0 ,
-            None,
-            pump_efficiency=0.9,
         )
-        
         
     """ representation
     """
 
     def __str__(self) -> str:
         
-        hotwater_supply_string = "" if not self.hotwater_supply else "(for hot-water supply) "
-        
-        return f"District-heating system {hotwater_supply_string}{self.name} (ID={self.ID})"
+        return f"District-heating system {self.name} (ID={self.ID})"
     
     def __repr__(self) -> str:
         return f"<DistrictHeating {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
+    
+class DistrictCooling(SourceSystem):
+    
+    def __init__(self,
+        name:str,
+        *,
+        ID:str|None=None
+        ) -> None:
+        
+        # user properties
+        self.name = name
+        
+        # set default ID if not specified
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.SOURCE_SYSTEM}AUTOID{hex(id(self))}"
+        self.__ID = ID
+    
+    """ identity and equality
+    """
+    
+    @property
+    def ID(self) -> str:
+        return self.__ID
+    
+    def __hash__(self) -> int:
+        return hash(self.ID)
+    
+    def __eq__(self, other:DistrictCooling) -> bool:
+        
+        # type validation
+        if not isinstance(other, DistrictCooling):
+            raise TypeError(
+                f"Cannot compare {type(self)} instance with {type(other)} instance"
+            )
+            
+        # two district cooling systems are always equal
+        return True
+    
+    """ in-out
+    """
+    
+    @staticmethod
+    def from_json(
+        input:SimpleNamespace
+    ) -> DistrictCooling:
+    
+        return DistrictCooling(
+            input.name,
+            ID=input.id
+        )
+    
+    def to_dragon(self):
+        
+        return dragon.DistrictCooling(
+            self.ID,
+        )        
+        
+    """ representation
+    """
+
+    def __str__(self) -> str:
+        
+        return f"District-cooling system {self.name} (ID={self.ID})"
+    
+    def __repr__(self) -> str:
+        return f"<DistrictCooling {self.name} (ID={self.ID}) at {hex(id(self))}>"
+    
 
 class Boiler(SourceSystem):
+    
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+        Fuel.LPG        ,
+        Fuel.OIL        ,
+        Fuel.BIOMASS    ,
+    ]
     
     def __init__(self,
         name:str,
         fuel           :str|Fuel ,
-        hotwater_supply:bool     ,
         efficiency     :int|float|None=None,
         capacity       :int|float|None=None,
-        
         *,
         ID:str|None=None
     ) -> Boiler:
@@ -738,10 +777,9 @@ class Boiler(SourceSystem):
         self.name = name
         
         # fundamental properties        
-        self.fuel            = fuel
+        self.fuel            = Fuel(fuel)
         self.capacity        = None if capacity   is None else capacity
         self.efficiency      = 0.85 if efficiency is None else efficiency
-        self.hotwater_supply = hotwater_supply
         
         # set default ID if not specified
         if ID is None:
@@ -752,13 +790,20 @@ class Boiler(SourceSystem):
     """
     
     @property
-    def fuel(self) -> str:
-        return str(self.__fuel)
+    def fuel(self) -> Fuel:
+        return self.__fuel
     
     @fuel.setter
     @validate_enum(Fuel)
     def fuel(self, value: str) -> None:
-        self.__fuel = Fuel(value)
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for Boiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
+        self.__fuel = value
     
     @property
     def efficiency(self) -> int|float:
@@ -779,15 +824,6 @@ class Boiler(SourceSystem):
     @validate_type(int, float, allow_none=True)
     def capacity(self, value: int|float) -> None:
         self.__capacity = value
-        
-    @property
-    def hotwater_supply(self) -> bool:
-        return self.__hotwater_supply
-    
-    @hotwater_supply.setter
-    @validate_type(bool)
-    def hotwater_supply(self, value:bool) -> None:
-        self.__hotwater_supply = value
     
     """ identity and equality
     """
@@ -810,8 +846,7 @@ class Boiler(SourceSystem):
         # two boilers are equal if all fundamental properties are equal
         return (self.fuel            == other.fuel           ) and\
                (self.efficiency      == other.efficiency     ) and\
-               (self.capacity        == other.capacity       ) and\
-               (self.hotwater_supply == other.hotwater_supply) 
+               (self.capacity        == other.capacity       ) 
     
     """ in-out
     """
@@ -824,7 +859,6 @@ class Boiler(SourceSystem):
         return Boiler(
             input.name,
             input.fuel_type       ,
-            input.hotwater_supply ,
             getattr(input,"efficiency", None),
             getattr(input,"capacity_heating", None),
             ID = input.id
@@ -846,17 +880,154 @@ class Boiler(SourceSystem):
     def __str__(self) -> str:
         
         
-        # formatting capacity and hotwater supply
+        # formatting capacity 
         cap_str = f"{self.capacity*Unit.W_TO_KW:4,.1f}kW" if self.capacity is not None else "autosize"
-        hotwater_supply_string = "" if not self.hotwater_supply else "(for hot-water supply) "
         
         return (
-            f"{self.fuel} Boiler {hotwater_supply_string}{self.name} (ID={self.ID})\n"
+            f"{self.fuel} Boiler {self.name} (ID={self.ID})\n"
             f"\t- capacity={cap_str}, eff.={self.efficiency*Unit.FRACTION_TO_PERCENT:.1f}%"
         )
     
     def __repr__(self) -> str:
         return f"<Boiler {self.name} (ID={self.ID}) at {hex(id(self))}>"
+
+
+class SteamBoiler(SourceSystem):
+    
+    SUPPORTED_FUELS = [
+        Fuel.ELECTRICITY,
+        Fuel.NATURALGAS ,
+        Fuel.LPG        ,
+        Fuel.OIL        ,
+        Fuel.BIOMASS    ,
+    ]
+    
+    def __init__(self,
+        name:str,
+        fuel           :str|Fuel ,
+        efficiency     :int|float|None=None,
+        capacity       :int|float|None=None,
+        *,
+        ID:str|None=None
+    ) -> SteamBoiler:
+        
+        # user properties
+        self.name = name
+        
+        # fundamental properties        
+        self.fuel            = Fuel(fuel)
+        self.capacity        = None if capacity   is None else capacity
+        self.efficiency      = 0.85 if efficiency is None else efficiency
+        
+        # set default ID if not specified
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.SOURCE_SYSTEM}AUTOID{hex(id(self))}"
+        self.__ID = ID
+    
+    """ fundamental properties
+    """
+    
+    @property
+    def fuel(self) -> Fuel:
+        return self.__fuel
+    
+    @fuel.setter
+    @validate_enum(Fuel)
+    def fuel(self, value: str) -> None:
+        
+        if value not in self.SUPPORTED_FUELS:
+            raise ValueError(
+                f"Unsupported fuel type for SteamBoiler: {value}. "
+                f"Supported fuels are: {[str(f) for f in self.SUPPORTED_FUELS]}"
+            )
+        
+        self.__fuel = value
+    
+    @property
+    def efficiency(self) -> int|float:
+        return self.__efficiency
+    
+    @efficiency.setter
+    @validate_range(min=math.nextafter(0,math.inf), max=1)
+    @validate_type(int, float)
+    def efficiency(self, value: int|float) -> None:
+        self.__efficiency = value
+    
+    @property
+    def capacity(self) -> int|float:
+        return self.__capacity
+    
+    @capacity.setter
+    @validate_range(min=math.nextafter(0,math.inf))
+    @validate_type(int, float, allow_none=True)
+    def capacity(self, value: int|float) -> None:
+        self.__capacity = value
+    
+    """ identity and equality
+    """
+    
+    @property
+    def ID(self) -> str:
+        return self.__ID
+    
+    def __hash__(self) -> int:
+        return hash(self.ID)
+    
+    def __eq__(self, other:SteamBoiler) -> bool:
+        
+        # type validation
+        if not isinstance(other, SteamBoiler):
+            raise TypeError(
+                f"Cannot compare {type(self)} instance with {type(other)} instance"
+            )
+            
+        # two boilers are equal if all fundamental properties are equal
+        return (self.fuel            == other.fuel           ) and\
+               (self.efficiency      == other.efficiency     ) and\
+               (self.capacity        == other.capacity       ) 
+    
+    """ in-out
+    """
+    
+    @staticmethod
+    def from_json(
+        input:SimpleNamespace
+    ) -> SteamBoiler:
+        
+        return SteamBoiler(
+            input.name,
+            input.fuel_type       ,
+            getattr(input,"efficiency", None),
+            getattr(input,"capacity_heating", None),
+            ID = input.id
+        )
+        
+    def to_dragon(self) -> dragon.SteamBoiler:
+        
+        return dragon.SteamBoiler(
+            self.ID,
+            Fuel(self.fuel).to_dragon(),
+            self.efficiency,
+            self.capacity  ,
+            pump_efficiency=0.9,
+        )
+        
+    """ representation
+    """
+    
+    def __str__(self) -> str:
+        
+        
+        # formatting capacity 
+        cap_str = f"{self.capacity*Unit.W_TO_KW:4,.1f}kW" if self.capacity is not None else "autosize"
+        
+        return (
+            f"{self.fuel} SteamBoiler {self.name} (ID={self.ID})\n"
+            f"\t- capacity={cap_str}, eff.={self.efficiency*Unit.FRACTION_TO_PERCENT:.1f}%"
+        )
+    
+    def __repr__(self) -> str:
+        return f"<SteamBoiler {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
 
 class NoneSource(SourceSystem):
@@ -898,140 +1069,12 @@ class SupplySystem:
     @property
     def coolable(self) -> bool:
         return (type(self.source) in self._coolable_sources)
-   
-
-class PackagedAirConditioner(SupplySystem):
-    
-    _heatable_sources = []
-    _coolable_sources = [NoneSource]
-    
-    def __init__(self,
-        name:str,
-        cop     :int|float|None=None,
-        capacity:int|float|None=None,
-        *,
-        ID:str|None=None
-        ) -> None:
-        
-        # user property
-        self.name = name
-        
-        # fundamental property
-        self.cop      = 3.0  if cop      is None else cop
-        self.capacity = None if capacity is None else capacity
-        
-        # a packaged air conditioner doesn't require source system
-        self.__source = NoneSource()
-        
-        # set default ID if not specified
-        if ID is None:
-            ID = f"{AUTOID_PREFIX.SUPPLY_SYSTEM}AUTOID{hex(id(self))}"
-        self.__ID = ID
-        
-    """ fundamental properties
-    """
-    
-    @property
-    def cop(self) -> int|float|None:
-        return self.__cop
-    
-    @cop.setter
-    @validate_range(min=math.nextafter(0,math.inf))
-    @validate_type(int, float)
-    def cop(self, value: int|float|None) -> None:
-        self.__cop = value
-        
-    @property
-    def capacity(self) -> int|float|None:
-        return self.__capacity
-    
-    @capacity.setter
-    @validate_range(min=math.nextafter(0,math.inf))
-    @validate_type(int, float, allow_none=True)
-    def capacity(self, value: int|float|None) -> None:
-        self.__capacity = value
-        
-    @property
-    def source(self) -> NoneSource:
-        return self.__source
-        
-    """ identity and equality
-    """
-    
-    @property
-    def ID(self) -> str:
-        return self.__ID
-    
-    def __hash__(self) -> int:
-        return hash(self.ID)
-    
-    def __eq__(self, other:PackagedAirConditioner) -> bool:
-        
-        # type validation
-        if not isinstance(other, PackagedAirConditioner):
-            raise TypeError(
-                f"Cannot compare {type(self)} instance with {type(other)} instance"
-            )
-            
-        # two packaged air conditioners are equal if cop and capacity are equal
-        return (self.cop      == other.cop     ) and\
-               (self.capacity == other.capacity)
-    
-    """ in-out
-    """
-    
-    @staticmethod
-    def from_json(
-        input             :SimpleNamespace        ,
-        source_system_dict:dict[str, SourceSystem],
-    ) -> PackagedAirConditioner:
-        
-        return PackagedAirConditioner(
-            input.name            ,
-            getattr(input,"cop_cooling", None)     ,
-            getattr(input,"capacity_cooling", None),
-            ID=input.id
-        )
-        
-    def to_dragon(self, source_dict:dict[str, dragon.SourceSystem]) -> dragon.PackagedAirConditioner:
-        
-        dedicated_ehp = dragon.HeatPump(
-            f"DedicatedHeatPump_for_{self.ID}",
-            dragon.Fuel.ELECTRICITY,
-            None,
-            self.cop,
-            1E-3,
-            self.capacity,
-        )
-        dedicated_ehp.name = f"DedicatedHeatPump{hex(id(dedicated_ehp))}_for_{self.ID}"
-        source_dict[dedicated_ehp.name] = dedicated_ehp
-        
-        return dragon.PackagedAirConditioner(
-            self.ID,
-            dedicated_ehp,
-        )
-        
-    """ representation
-    """
-    
-    def __str__(self) -> str:
-        
-        # formatting capacity and hotwater supply
-        cap_str = f"{self.capacity*Unit.W_TO_KW:4,.1f}kW" if self.capacity is not None else "autosize"
-        
-        return (
-            f"PackagedAirConditioner {self.name} (ID={self.ID})"
-            f" with COP={self.cop:.2f}, capacity={cap_str}"
-        )
-        
-    def __repr__(self) -> str:
-        return f"<PackagedAirConditioner {self.name} (ID={self.ID}) at {hex(id(self))}>"
         
     
-class AirHandlingUnit(SupplySystem):
+class DXIndoorUnit(SupplySystem):
     
-    _heatable_sources = [HeatPump, GeothermalHeatPump]
-    _coolable_sources = [HeatPump, GeothermalHeatPump]
+    _heatable_sources = [HeatPump]
+    _coolable_sources = [HeatPump]
     
     def __init__(self,
         name,
@@ -1073,7 +1116,7 @@ class AirHandlingUnit(SupplySystem):
     def __hash__(self) -> int:
         return hash(self.ID)
     
-    def __eq__(self, other:AirHandlingUnit) -> bool:
+    def __eq__(self, other:DXIndoorUnit) -> bool:
         
         # type validation
         if not isinstance(other, type(self)):
@@ -1091,17 +1134,17 @@ class AirHandlingUnit(SupplySystem):
     def from_json(
         input             :SimpleNamespace        ,
         source_system_dict:dict[str, SourceSystem],
-        ) -> AirHandlingUnit:
+        ) -> DXIndoorUnit:
         
-        return AirHandlingUnit(
+        return DXIndoorUnit(
             input.name,
             source_system_dict[input.source_system_id],
             ID=input.id
         )
     
-    def to_dragon(self, source_dict:dict[str, dragon.SourceSystem]) -> dragon.AirHandlingUnit:
+    def to_dragon(self, source_dict:dict[str, dragon.SourceSystem]) -> dragon.DXIndoorUnit:
         
-        return dragon.AirHandlingUnit(
+        return dragon.DXIndoorUnit(
             self.ID,
             source_dict[self.source.ID],
         )
@@ -1116,10 +1159,10 @@ class AirHandlingUnit(SupplySystem):
         return f"<AirHandlingUnit {self.name} (ID={self.ID}) at {hex(id(self))}>"
 
 
-class FanCoilUnit(AirHandlingUnit):
+class FanCoilUnit(DXIndoorUnit):
     
     _heatable_sources = [Boiler, DistrictHeating]
-    _coolable_sources = [Chiller, AbsorptionChiller]
+    _coolable_sources = [Chiller, AbsorptionChiller, DistrictCooling]
     
     def __init__(self,
         name,
@@ -1206,7 +1249,7 @@ class FanCoilUnit(AirHandlingUnit):
         
 class Radiator(SupplySystem):
     
-    _heatable_sources = [Boiler, DistrictHeating]
+    _heatable_sources = [Boiler, SteamBoiler, DistrictHeating]
     _coolable_sources = []
     
     def __init__(self,
@@ -1398,7 +1441,7 @@ class ElectricRadiator(SupplySystem):
     
     def __str__(self) -> str:
         
-        # formatting capacity and hotwater supply
+        # formatting capacity
         cap_str = f"{self.capacity*Unit.W_TO_KW:4,.1f}kW" if self.capacity is not None else "autosize"
         
         return f"Electric radiator {self.name} with capacity={cap_str} (ID={self.ID})"
@@ -1708,7 +1751,7 @@ class PhotoVoltaicSystem:
         name:str,
         area      :int|float,
         efficiency:int|float,
-        azimuth   :int|float,
+        azimuth   :int|float, # clockwise from north
         tilt      :int|float,
         *,
         ID:str|None=None
@@ -1756,7 +1799,7 @@ class PhotoVoltaicSystem:
         return self.__azimuth
     
     @azimuth.setter
-    @validate_range(min=0, max=math.nextafter(360,-math.inf))
+    @validate_range(min=math.nextafter(-360, math.inf), max=math.nextafter(360,-math.inf))
     @validate_type(int, float)
     def azimuth(self, value:int|float) -> None:
         self.__azimuth = value
@@ -1818,7 +1861,7 @@ class PhotoVoltaicSystem:
             self.ID,
             self.area      ,
             self.tilt      ,
-            self.azimuth   ,
+            (360-self.azimuth)%360,
             self.efficiency,
         )
         
@@ -1831,15 +1874,98 @@ class PhotoVoltaicSystem:
     def __repr__(self) -> str:
         return f"<PhotoVoltaicSystem {self.name} (ID={self.ID}) at {hex(id(self))}>"
     
-    
+
+class WindTurbineSystem:
+    """Wind turbine product with net rated electrical capacity in W."""
+
+    def __init__(
+        self,
+        name: str,
+        capacity: int | float,
+        type: str,
+        *,
+        ID: str | None = None,
+    ) -> None:
+
+        self.name = name
+        self.capacity = capacity
+        self.type = type
+
+        if ID is None:
+            ID = f"{AUTOID_PREFIX.WIND_TURBINE}AUTOID{hex(id(self))}"
+
+        self.__ID = ID
+
+    @property
+    def capacity(self) -> int | float:
+        return self.__capacity
+
+    @capacity.setter
+    @validate_type(int, float)
+    def capacity(self, value: int | float) -> None:
+
+        if isinstance(value, bool):
+            raise TypeError("capacity must be a number, not bool.")
+
+        if not math.isfinite(value) or value <= 0:
+            raise ValueError(
+                "capacity must be finite and greater than zero."
+            )
+
+        self.__capacity = value
+
+    @property
+    def type(self) -> str:
+        return self.__type
+
+    @type.setter
+    @validate_type(str)
+    @validate_enum("horizontal", "vertical")
+    def type(self, value: str) -> None:
+        self.__type = value
+
+    @property
+    def ID(self) -> str:
+        return self.__ID
+
+    @staticmethod
+    def from_json(input: SimpleNamespace) -> WindTurbineSystem:
+
+        return WindTurbineSystem(
+            input.name,
+            input.capacity,
+            input.type,
+            ID=input.id,
+        )
+
+    def to_dragon(self) -> dragon.WindTurbine:
+
+        return dragon.WindTurbine(
+            name=self.ID,
+            capacity=self.capacity,
+            type=self.type,
+        )
+
+    def __str__(self) -> str:
+
+        return (
+            f"{self.capacity:.1f}W {self.type} wind turbine "
+            f"{self.name} (ID={self.ID})"
+        )
+
+    def __repr__(self) -> str:
+
+        return (
+            f"<WindTurbineSystem {self.name} "
+            f"(ID={self.ID}) at {hex(id(self))}>"
+        )
     
 # ---------------------------------------------------------------------------- #
 #                                 CHILD CLASSES                                #
 # ---------------------------------------------------------------------------- #
 
 SupplySystem.TYPE_MAPPER = {
-    "packaged_air_conditioner": PackagedAirConditioner,
-    "air_handling_unit"       : AirHandlingUnit       ,
+    "dx_indoor_unit"          : DXIndoorUnit       ,
     "fan_coil_unit"           : FanCoilUnit           ,
     "radiator"                : Radiator              ,
     "electric_radiator"       : ElectricRadiator      ,
@@ -1849,10 +1975,11 @@ SupplySystem.TYPE_MAPPER = {
 
 SourceSystem.TYPE_MAPPER = {
     "heatpump"           : HeatPump          ,
-    "geothermal_heatpump": GeothermalHeatPump,
     "chiller"            : Chiller           ,
     "absorption_chiller" : AbsorptionChiller ,
+    "district_cooling"   : DistrictCooling   ,
     "boiler"             : Boiler            ,
+    "steam_boiler"       : SteamBoiler       ,
     "district_heating"   : DistrictHeating   ,
 }
 

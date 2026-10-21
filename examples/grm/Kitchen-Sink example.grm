@@ -1,0 +1,520 @@
+{
+    "building": {
+        "name": "ASHRAE 140 modified",
+        "north_axis": 0,
+        "address": "서울특별시 관악구",
+        "vintage": [
+            2000,
+            1,
+            1
+        ],
+        "is_multifamily_housing": false,
+        "floors": [
+            {
+                "floor_number": 1,
+                "zones": [
+                    {
+                        "id": "ZONE-0x000000",
+                        "name": "실",
+                        "height": 2.7,
+                        "profile": "소규모사무실",
+                        "light_density": 10,
+                        "supply_system_ids": [
+                           "SUPL-0x000000",
+                           "SUPL-0x000002",
+                           "SUPL-0x000004",
+                           "SUPL-0x000005"
+                        ],
+                        "ventilation_system_assignments": [
+
+                        ],
+                        "surfaces": [
+                            {
+                                "id": "SURF-0x000000",
+                                "name": "실_바닥",
+                                "type": "floor",
+                                "boundary_condition": "ground",
+                                "area": 48.0,
+                                "construction_id": "CTSF-0x000001",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000001",
+                                "name": "실_북벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 21.6,
+                                "azimuth": 0.0,
+                                "construction_id": "CTSF-0x000000",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000002",
+                                "name": "실_서벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 16.2,
+                                "azimuth": 90.0,
+                                "construction_id": "CTSF-0x000000",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000003",
+                                "name": "실_남벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 21.6,
+                                "azimuth": 180.0,
+                                "construction_id": "CTSF-0x000000",
+                                "fenestrations": [
+                                    {
+                                        "id": "FNST-0x000000",
+                                        "name": "실_남벽_창_1",
+                                        "type": "window",
+                                        "area": 6,
+                                        "blind": null,
+                                        "construction_id": "CTFN-0x000000"
+                                    },
+                                    {
+                                        "id": "FNST-0x000001",
+                                        "name": "실_남벽_창_2",
+                                        "type": "window",
+                                        "area": 6,
+                                        "blind": null,
+                                        "construction_id": "CTFN-0x000000"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "SURF-0x000004",
+                                "name": "실_동벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 16.2,
+                                "azimuth": 270.0,
+                                "construction_id": "CTSF-0x000000",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000005",
+                                "name": "실_천장",
+                                "type": "ceiling",
+                                "boundary_condition": "outdoors",
+                                "area": 48.0,
+                                "coolroof_reflectance": null,
+                                "construction_id": "CTSF-0x000002",
+                                "fenestrations": []
+                            }
+                        ]
+                    },
+                    {
+                        "id": "ZONE-0x000001",
+                        "name": "실",
+                        "height": 2.7,
+                        "profile": "CUSTOM",
+                        "profile_id": "PROF-0x000000",
+                        "light_density": 10,
+                        "supply_system_ids": [
+                            "SUPL-0x000001",
+                            "SUPL-0x000000",
+                            "SUPL-0x000003"
+                        ],
+                        "ventilation_system_assignments": [
+
+                        ],
+                        "surfaces": [
+                            {
+                                "id": "SURF-0x000006",
+                                "name": "실_바닥",
+                                "type": "floor",
+                                "boundary_condition": "ground",
+                                "area": 48.0,
+                                "construction_id": "current_regulation",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000007",
+                                "name": "실_북벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 21.6,
+                                "azimuth": 0.0,
+                                "construction_id": "vintage_regulation",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000008",
+                                "name": "실_서벽",
+                                "type": "wall",
+                                "boundary_condition": "zone",
+                                "area": 16.2,
+                                "adjacent_zone_id": "ZONE-0x000000",
+                                "construction_id": "open",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000009",
+                                "name": "실_남벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 21.6,
+                                "azimuth": 180.0,
+                                "construction_id": "CTSF-0x000003",
+                                "fenestrations": [
+                                    {
+                                        "id": "FNST-0x000000",
+                                        "name": "실_남벽_창_1",
+                                        "type": "window",
+                                        "area": 6,
+                                        "blind": null,
+                                        "construction_id": "CTFN-0x000000"
+                                    },
+                                    {
+                                        "id": "FNST-0x000001",
+                                        "name": "실_남벽_창_2",
+                                        "type": "window",
+                                        "area": 6,
+                                        "blind": null,
+                                        "construction_id": "CTFN-0x000000"
+                                    }
+                                ]
+                            },
+                            {
+                                "id": "SURF-0x000010",
+                                "name": "실_동벽",
+                                "type": "wall",
+                                "boundary_condition": "outdoors",
+                                "area": 16.2,
+                                "azimuth": 270.0,
+                                "construction_id": "CTSF-0x000003",
+                                "fenestrations": []
+                            },
+                            {
+                                "id": "SURF-0x000011",
+                                "name": "실_천장",
+                                "type": "ceiling",
+                                "boundary_condition": "outdoors",
+                                "area": 48.0,
+                                "coolroof_reflectance": 0.7,
+                                "construction_id": "current_regulation",
+                                "fenestrations": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ],
+        "renewable_energy_system_assignments":[
+            {
+                "id"   : "PVPN-0x000000",
+                "count": 3
+            },
+            {
+                "id"   : "PVPN-0x000001",
+                "count": 1
+            },
+            {
+                "id"   : "WDTB-0x000000",
+                "count": 5
+            },
+            {
+                "id"   : "WDTB-0x000001",
+                "count": 2
+            }
+        ],
+        "hotwater_source_system_ids":[
+            "SRCE-0x000001"
+        ]     
+    },
+    "resources": {
+        "profiles": [
+            {
+                "id": "PROF-0x000000",
+                "name": "Custom profile",
+                "occupant_start": 8,
+                "occupant_end" : 18,
+                "hvac_start"   :  8,
+                "hvac_end"     : 18,
+                "lighting_hours":10,
+                "ventilation_airflow"   :  2,
+                "domestic_hotwater_load": 20,
+                "occupancy_load"        : 10,
+                "equipment_load"        : 10,
+                "heating_setpoint": 20,
+                "cooling_setpoint": 26,
+                "weekly_schedule": {
+                    "monday"   : true , "tuesday"  : true , "wednesday": true ,
+                    "thursday" : true , "friday"   : true , "saturday" : false,
+                    "sunday"   : true , "holiday"  : false
+                },
+                "vacations": [
+                    {"start_month": 7, "start_day": 1, "end_month": 7, "end_day": 11},
+                    {"start_month": 8, "start_day": 1, "end_month": 8, "end_day": 31},
+                    {"start_month": 9, "start_day": 1, "end_month": 9, "end_day":  5}
+                ]
+            }
+        ],
+        "materials": [
+            {
+                "id": "MTRL-0x000000",
+                "name": "Plasterboard",
+                "conductivity": 0.16,
+                "density": 950.0,
+                "specific_heat": 840
+            },
+            {
+                "id": "MTRL-0x000001",
+                "name": "Fiberglass quilt",
+                "conductivity": 0.04,
+                "density": 12.0,
+                "specific_heat": 840
+            },
+            {
+                "id": "MTRL-0x000002",
+                "name": "Wood siding",
+                "conductivity": 0.14,
+                "density": 530.0,
+                "specific_heat": 900
+            },
+            {
+                "id": "MTRL-0x000003",
+                "name": "Timber flooring",
+                "conductivity": 0.14,
+                "density": 650.0,
+                "specific_heat": 1200
+            },
+            {
+                "id": "MTRL-0x000004",
+                "name": "Insulation",
+                "conductivity": 0.04,
+                "density": 12.0,
+                "specific_heat": 100
+            },
+            {
+                "id": "MTRL-0x000005",
+                "name": "Roofdeck",
+                "conductivity": 0.14,
+                "density": 530.0,
+                "specific_heat": 900
+            }
+        ],
+        "surface_constructions": [
+            {
+                "id": "CTSF-0x000000",
+                "name": "외벽",
+                "vintage_layer_position": "inside",
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000002",
+                        "thickness": 0.009
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.066
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.012
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000003",
+                "name": "외벽",
+                "vintage_layer_position": null,
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000002",
+                        "thickness": 0.009000000000000001
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.066
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.012
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000001",
+                "name": "바닥",
+                "vintage_layer_position": "outside",
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000004",
+                        "thickness": 1.0030000000000001
+                    },
+                    {
+                        "material_id": "MTRL-0x000003",
+                        "thickness": 0.025
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000002",
+                "name": "천장",
+                "vintage_layer_position": null,
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000005",
+                        "thickness": 0.019
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.1118
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.01
+                    }
+                ]
+            }
+        ],
+        "fenestration_constructions": [
+            {
+                "id": "CTFN-0x000000",
+                "name": "Clear Double-Pane Glazing",
+                "is_transparent": true,
+                "u": 2.1,
+                "g": 0.769
+            }
+        ],
+        "supply_systems": {
+            "dx_indoor_unit":[
+                {
+                    "id": "SUPL-0x000000",
+                    "name": "실내기-실",
+                    "source_system_id": "SRCE-0x000000"
+                }
+            ],
+            "fan_coil_unit": [
+                {
+                    "id": "SUPL-0x000001",
+                    "name": "냉방용FCU",
+                    "source_system_id": "SRCE-0x000003"
+                }
+
+            ],
+            "radiator": [
+                {
+                    "id": "SUPL-0x000004",
+                    "name": "그냥 라디에이터",
+                    "source_system_id": "SRCE-0x000001"
+                },
+                {
+                    "id": "SUPL-0x000005",
+                    "name": "스팀 라디에이터",
+                    "source_system_id": "SRCE-0x000004"
+                }
+
+            ],
+            "electric_radiator": [
+
+            ],
+            "radiant_floor":[
+                {
+                    "id": "SUPL-0x000002",
+                    "name":"바닥난방",
+                    "source_system_id": "SRCE-0x000001"
+                },
+                {
+                    "id": "SUPL-0x000003",
+                    "name":"바닥난방",
+                    "source_system_id": "SRCE-0x000002"
+                }
+            ],
+            "electric_radiant_floor": [
+
+            ]
+        },
+        "source_systems": {
+            "heatpump": [
+                {
+                    "id": "SRCE-0x000000",
+                    "name": "실외기",
+                    "capacity_cooling": null,
+                    "capacity_heating": null,
+                    "cop_cooling": 3.0,
+                    "cop_heating": 3.0,
+                    "fuel_type": "electricity"
+                }
+            ],
+            "chiller": [
+
+            ],
+            "absorption_chiller": [
+
+            ],
+            "district_cooling": [
+                {
+                    "id": "SRCE-0x000003",
+                    "name": "지역냉방"
+                }
+            ],
+            "boiler": [
+                {
+                    "id": "SRCE-0x000001",
+                    "name": "보일러",
+                    "fuel_type": "biomass"
+                }
+            ],
+            "steam_boiler": [
+                {
+                    "id": "SRCE-0x000004",
+                    "name": "스팀보일러",
+                    "fuel_type": "lpg",
+                    "efficiency": 0.91,
+                    "capacity" : 3700
+                }
+            ],
+            "district_heating": [
+                {
+                    "id": "SRCE-0x000002",
+                    "name": "지역난방"
+                }
+
+            ]
+        },
+        "ventilation_systems": {
+            "energy_recovery_ventilator": [
+
+            ]
+        },
+        "renewable_energy_systems": {
+            "photovoltaic_panel": [
+                {
+                    "id": "PVPN-0x000000",
+                    "name": "태양광발전",
+                    "area": 3.2,
+                    "azimuth": 180.0,
+                    "tilt": 30.0,
+                    "efficiency": 0.19
+                },
+                {
+                    "id": "PVPN-0x000001",
+                    "name": "태양광발전",
+                    "area": 6,
+                    "azimuth": 160.0,
+                    "tilt": 45.0,
+                    "efficiency": 0.25
+                }
+            ],
+            "wind_turbine": [
+                {
+                    "id": "WDTB-0x000000",
+                    "name": "풍력발전",
+                    "capacity": 1000,
+                    "type": "horizontal"
+                },
+                {
+                    "id": "WDTB-0x000001",
+                    "name": "풍력발전",
+                    "capacity": 600,
+                    "type": "vertical"
+                }
+            ]
+        }
+    }
+}

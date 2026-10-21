@@ -53,11 +53,13 @@ from .hvac import (
     OpenSingleSpeedCoolingTower,
     OpenTwoSpeedCoolingTower,
     Boiler,
+    SteamBoiler,
+    DistrictHeating,
+    DistrictCooling,
     # supply systems
     SupplySystem,
     SupplyGroup,
-    AirHandlingUnit,
-    PackagedAirConditioner,
+    DXIndoorUnit,
     FanCoilUnit,
     Radiator,
     ElectricRadiator,
@@ -68,5 +70,6 @@ from .hvac import (
     # other systems
     EnergyRecoveryVentilator,
     PhotoVoltaicPanel       ,
+    WindTurbine             ,
 )
     

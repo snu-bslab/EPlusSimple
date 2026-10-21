@@ -9,10 +9,12 @@ import os
 import re
 import json
 import math
-from copy     import deepcopy
 from types    import SimpleNamespace
-from typing   import Iterable
 from datetime import datetime
+from copy     import (
+    copy    ,
+    deepcopy,
+)
 
 # third-party modules
 import pandas as pd
@@ -36,11 +38,13 @@ from . import (
     # construction
     Material                ,
     SurfaceConstruction     ,
-    OpenConstruction         ,
-    UnknownConstruction     ,
+    OpenConstruction        ,
+    VintageConstruction     ,
+    CurrentConstruction     ,
     FenestrationConstruction,
     # profile
     Profile,
+    KoreanUsageProfile,
     # hvac
     Fuel,
     RadiantFloor      ,
@@ -48,9 +52,11 @@ from . import (
     SourceSystem      ,
     Boiler            ,
     DistrictHeating   ,
+    DistrictCooling   ,
     SupplySystem      ,
     VentilationSystem ,
     PhotoVoltaicSystem,
+    WindTurbineSystem ,
     NoneSource        ,
     # shape
     Surface                 ,
@@ -113,9 +119,10 @@ def address_to_weather(
     weather_location = sigungu_info["기상지역명"]
     weather_filepath = Directory.WEATHER_DATA_DIR /  sigungu_info["EPW파일명"]
     
-    climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
+    vintage_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
+    current_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= datetime.now().strftime(r"%Y%m%d"))]
     
-    return terrain, climate, weather_location, weather_filepath
+    return terrain, vintage_climate, current_climate, weather_location, weather_filepath
 
 
 class GreenRetrofitModel:
@@ -126,8 +133,10 @@ class GreenRetrofitModel:
         vintage   :list[int]|datetime,
         is_multifamily_housing:bool  ,
         north_axis:int|float         ,
-        zone      :list[Zone]=[],
-        pv        :list[PhotoVoltaicSystem]=[],
+        zone      :list[Zone]=None,
+        pv        :list[PhotoVoltaicSystem]=None,
+        windtb    :list[WindTurbineSystem] = None,
+        hotwater  :list[SourceSystem]=None,
         ) -> None:
         
         # user properties
@@ -140,8 +149,10 @@ class GreenRetrofitModel:
         self.north_axis=north_axis
         
         # child objects
-        self.zone=zone
-        self.pv  =pv
+        self.zone    =[] if zone     is None else zone
+        self.pv      =[] if pv       is None else pv
+        self.windtb  =[] if windtb   is None else windtb
+        self.hotwater=[] if hotwater is None else hotwater
         
         # initialization
         self.__source_system = []
@@ -156,10 +167,11 @@ class GreenRetrofitModel:
     @address.setter
     def address(self, value:str) -> None:
         
-        terrain, climate, weather_location, weather_filepath = address_to_weather(value, self.vintage)
+        terrain, vintage_climate, current_climate, weather_location, weather_filepath = address_to_weather(value, self.vintage)
         
         self.__terrain = terrain
-        self.__climate = climate
+        self.__vintage_climate = vintage_climate
+        self.__current_climate = current_climate
         self.__weather = weather_location
         self.__weather_filepath = weather_filepath
         self.__address = value       
@@ -167,8 +179,12 @@ class GreenRetrofitModel:
         return
     
     @property
-    def climate(self) -> str:
-        return self.__climate
+    def vintage_climate(self) -> str:
+        return self.__vintage_climate
+    
+    @property
+    def current_climate(self) -> str:
+        return self.__current_climate
     
     @property
     def terrain(self) -> str:
@@ -207,7 +223,7 @@ class GreenRetrofitModel:
         return self.__north_axis
     
     @north_axis.setter
-    @validate_range(min=0, max=math.nextafter(360,-math.inf))
+    @validate_range(min=math.nextafter(-360,math.inf), max=math.nextafter(360,-math.inf))
     @validate_type(int, float)
     def north_axis(self, value: int|float) -> None:
         self.__north_axis = value
@@ -228,16 +244,6 @@ class GreenRetrofitModel:
         unique_sources = list(sources.values())
         
         return self.__source_system + unique_sources
-    
-    @source_system.setter
-    def source_system(self, value:list[SourceSystem]):
-        
-        if not isinstance(value, Iterable) and not all(isinstance(item, SourceSystem) for item in value):
-            raise ValueError(
-                f"Source system of a GreenRetrofitModel instance must be an iterable of SourceSystem instances."
-            )
-        
-        self.__source_system = list(value)
     
     @property
     def area(self) -> float:
@@ -281,12 +287,21 @@ class GreenRetrofitModel:
             
             areasum += wall.area
             
-            if wall.construction is UnknownConstruction():
+            if wall.construction is VintageConstruction():
                 UAsum += wall.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     wall.type    ,
                     wall.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif wall.construction is CurrentConstruction():
+                UAsum += wall.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()   ,
+                    wall.type    ,
+                    wall.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -307,12 +322,21 @@ class GreenRetrofitModel:
         for roof in self.exteriorroofs:
             areasum += roof.area
             
-            if roof.construction is UnknownConstruction():
+            if roof.construction is VintageConstruction():
                 UAsum += roof.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     roof.type    ,
                     roof.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif roof.construction is CurrentConstruction():
+                UAsum += roof.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()   ,
+                    roof.type    ,
+                    roof.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -333,12 +357,21 @@ class GreenRetrofitModel:
         for floor in self.exteriorfloors:
             areasum += floor.area
             
-            if floor.construction is UnknownConstruction():
+            if floor.construction is VintageConstruction():
                 UAsum += floor.area * SurfaceConstruction.get_regulated_construction(
                     self.vintage    ,
                     floor.type    ,
                     floor.boundary,
-                    self.climate    ,
+                    self.vintage_climate    ,
+                    is_multifamily_housing=self.is_multifamlily_housing,
+                ).get_U()
+                
+            elif floor.construction is VintageConstruction():
+                UAsum += floor.area * SurfaceConstruction.get_regulated_construction(
+                    datetime.now()    ,
+                    floor.type    ,
+                    floor.boundary,
+                    self.current_climate    ,
                     is_multifamily_housing=self.is_multifamlily_housing,
                 ).get_U()
                 
@@ -439,6 +472,55 @@ class GreenRetrofitModel:
         # read the json file
         with open(filepath, encoding="UTF-8") as f:
             input = json.load(f, object_hook=lambda d: SimpleNamespace(**d))
+
+        # construction
+        material_dict = {
+            material_input.id: Material.from_json(material_input)
+            for material_input in input.resources.materials
+        }
+        surface_construction_dict = {
+            construction_input.id: SurfaceConstruction.from_json(construction_input, material_dict)
+            for construction_input in input.resources.surface_constructions
+        }
+        fenestration_construction_dict = {
+            fenestration_input.id: FenestrationConstruction.from_json(fenestration_input)
+            for fenestration_input in input.resources.fenestration_constructions
+        }
+        
+        # special constructions
+        surface_construction_dict["open"]    = OpenConstruction()
+        surface_construction_dict["vintage_regulation"] = VintageConstruction()
+        surface_construction_dict["current_regulation"] = CurrentConstruction()
+        
+        # profile
+        profile_dict = {
+            profile_input.id: KoreanUsageProfile.from_json(profile_input)
+            for profile_input in input.resources.profiles
+        }
+        
+        # system
+        source_system_dict = {
+            sys_item.id: SourceSystem.TYPE_MAPPER[sys_type].from_json(sys_item)
+            for sys_type, sys_list in vars(input.resources.source_systems).items()
+            for sys_item in sys_list
+        }
+        supply_system_dict = {
+            sys_item.id: SupplySystem.TYPE_MAPPER[sys_type].from_json(sys_item, source_system_dict)
+            for sys_type, sys_list in vars(input.resources.supply_systems).items()
+            for sys_item in sys_list
+        }
+        ventilation_system_dict = {
+            ventilation_input.id: VentilationSystem.from_json(ventilation_input)
+            for ventilation_input in input.resources.ventilation_systems.energy_recovery_ventilator
+        }
+        photovoltaic_system_dict = {
+            photovoltaic_input.id: PhotoVoltaicSystem.from_json(photovoltaic_input)
+            for photovoltaic_input in input.resources.renewable_energy_systems.photovoltaic_panel
+        } if hasattr(input.resources.renewable_energy_systems, "photovoltaic_panel") else {}
+        windturbine_system_dict = {
+            wind_input.id: WindTurbineSystem.from_json(wind_input)
+            for wind_input in input.resources.renewable_energy_systems.wind_turbine
+        } if hasattr(input.resources.renewable_energy_systems, "wind_turbine") else {}
         
         # create a GreenRetrofitModel
         grm = cls(
@@ -449,50 +531,13 @@ class GreenRetrofitModel:
             input.building.north_axis,
         )
         
-        # construction
-        material_dict = {
-            material_input.id: Material.from_json(material_input)
-            for material_input in input.materials
-        }
-        surface_construction_dict = {
-            construction_input.id: SurfaceConstruction.from_json(construction_input, material_dict)
-            for construction_input in input.surface_constructions
-        }
-        fenestration_construction_dict = {
-            fenestration_input.id: FenestrationConstruction.from_json(fenestration_input)
-            for fenestration_input in input.fenestration_constructions
-        }
-        
-        # special constructions
-        surface_construction_dict["open"]    = OpenConstruction()
-        surface_construction_dict["unknown"] = UnknownConstruction()
-        
-        # system
-        source_system_dict = {
-            sys_item.id: SourceSystem.TYPE_MAPPER[sys_type].from_json(sys_item)
-            for sys_type, sys_list in vars(input.building.source_systems).items()
-            for sys_item in sys_list
-        }
-        supply_system_dict = {
-            sys_item.id: SupplySystem.TYPE_MAPPER[sys_type].from_json(sys_item, source_system_dict)
-            for sys_type, sys_list in vars(input.building.supply_systems).items()
-            for sys_item in sys_list
-        }
-        ventilation_system_dict = {
-            ventilation_input.id: VentilationSystem.from_json(ventilation_input)
-            for ventilation_input in input.building.ventilation_systems
-        }
-        photovoltaic_systems = {
-            photovoltaic_input.id: PhotoVoltaicSystem.from_json(photovoltaic_input)
-            for photovoltaic_input in input.building.photovoltaic_systems
-        }
-        
         # zone
         grm.zone = [
             Zone.from_json(
                 zone_input                    ,
                 surface_construction_dict     ,
                 fenestration_construction_dict,
+                profile_dict                  ,
                 supply_system_dict            ,
                 ventilation_system_dict       ,
             )
@@ -500,13 +545,20 @@ class GreenRetrofitModel:
             for zone_input  in floor_input.zones
         ]
         
-        # add unused source systems
-        # please refer to the definition of the supply_system property
-        applied_ID = {source.ID for source in grm.source_system}
-        grm.source_system = [sys for sys in source_system_dict.values() if sys.ID not in applied_ID]
-        
         # pv panel
-        grm.pv = list(photovoltaic_systems.values())
+        grm.pv = [
+            photovoltaic_system_dict[assignment.id]
+            for assignment in input.building.renewable_energy_system_assignments
+            if assignment.id in photovoltaic_system_dict.keys()
+            for _ in range(assignment.count)
+        ]
+        grm.windtb = [
+            windturbine_system_dict[assignment.id]
+            for assignment in input.building.renewable_energy_system_assignments
+            if assignment.id in windturbine_system_dict.keys()
+            for _ in range(assignment.count)
+        ]
+        grm.hotwater = list(source_system_dict[sys_id] for sys_id in input.building.hotwater_source_system_ids)
         
         # assign adjacent-zone references
         zone_dict = {zone.ID: zone for zone in grm.zone}
@@ -539,7 +591,7 @@ class GreenRetrofitModel:
         
         # collect surfaces
         surfaces_by_zone = {
-            zone.ID: list(zone.surface)
+            zone.ID: [copy(srf) for srf in zone.surface]
             for zone in self.zone
         }
         surface_dict = {
@@ -552,7 +604,7 @@ class GreenRetrofitModel:
             if any(isinstance(sys, RadiantFloor|ElectricRadiantFloor) for sys in zone.supply_systems)
         ], start=[])
         
-        # resolve unknown constructions
+        # resolve vintage based constructions
         default_innerwall_construction = SurfaceConstruction(
             f"{SpecialTag.SPECIAL}DefaultInnerWallConstruction",
             Material.get_DB("gypsumboard"), 0.0125, 
@@ -560,12 +612,9 @@ class GreenRetrofitModel:
             Material.get_DB("gypsumboard"), 0.0125,
         )
         dragonized_default_innerwall_construction = default_innerwall_construction.to_dragon()
-        unknown_surfaces = []
         for surface in surface_dict.values():
             
-            if surface.construction is UnknownConstruction():
-                unknown_surfaces.append(surface)
-                
+            if surface.construction is VintageConstruction():
                 # interior wall
                 if (surface.type == SurfaceType.WALL) and (surface.boundary == SurfaceBoundaryCondition.ZONE):
                     surface.construction = default_innerwall_construction
@@ -577,7 +626,7 @@ class GreenRetrofitModel:
                         self.vintage    ,
                         surface.type    ,
                         surface.boundary,
-                        self.climate    ,
+                        self.vintage_climate    ,
                         is_radiant_floor      =(surface.ID in radiant_floor_list),
                         is_multifamily_housing=self.is_multifamlily_housing,
                     )
@@ -585,6 +634,65 @@ class GreenRetrofitModel:
                     
                     dragonized_construction = regulated_construction.to_dragon()
                     surface_construction_dict[dragonized_construction.name] = dragonized_construction
+            
+            elif surface.construction is CurrentConstruction():
+                # interior wall
+                if (surface.type == SurfaceType.WALL) and (surface.boundary == SurfaceBoundaryCondition.ZONE):
+                    surface.construction = default_innerwall_construction
+                    surface_construction_dict[dragonized_default_innerwall_construction.name] = dragonized_default_innerwall_construction
+                
+                # exterior wall / roof / floor
+                else:            
+                    regulated_construction = SurfaceConstruction.get_regulated_construction(
+                        datetime.now(),
+                        surface.type    ,
+                        surface.boundary,
+                        self.current_climate    ,
+                        is_radiant_floor      =(surface.ID in radiant_floor_list),
+                        is_multifamily_housing=self.is_multifamlily_housing,
+                    )
+                    surface.construction = regulated_construction
+                    
+                    dragonized_construction = regulated_construction.to_dragon()
+                    surface_construction_dict[dragonized_construction.name] = dragonized_construction
+            
+            elif (surface.construction is not OpenConstruction()) and (surface.construction.vintage_layer_position is not None):
+
+                original = surface.construction
+                position = original.vintage_layer_position
+
+                # 1. 기본 구조체 선택
+                if (surface.type == SurfaceType.WALL and surface.boundary == SurfaceBoundaryCondition.ZONE):
+                    # 내벽: 기존 기본 내벽 구조체 사용
+                    base = default_innerwall_construction
+
+                else:
+                    # 그 외: 기존 unknown 처리와 동일한 조건으로 규정 구조체 조회
+                    base = SurfaceConstruction.get_regulated_construction(
+                        self.vintage,
+                        surface.type,
+                        surface.boundary,
+                        self.vintage_climate,
+                        is_radiant_floor=(surface.ID in radiant_floor_list),
+                        is_multifamily_housing=self.is_multifamlily_housing,
+                    )
+
+                # 2. 기본 구조체와 사용자층 결합
+                layers = (
+                    original.layers + base.layers
+                    if position == "inside"
+                    else base.layers + original.layers
+                )
+
+                combined = SurfaceConstruction(
+                    original.name,
+                    *[value for layer in layers for value in layer],
+                    ID=f"{original.ID}:with_regulation:for:{surface.ID}",
+                )
+
+                # 3. 해당 surface에 배정하고 dragon 구조체 등록
+                surface.construction = combined
+                surface_construction_dict[combined.ID] = combined.to_dragon()             
             
         # duplicate surfaces by adjacency
         adjacent_pair       = dict()
@@ -655,10 +763,6 @@ class GreenRetrofitModel:
         for ID in adjacent_pair.keys():
             dragonized_surface_dict[ID].boundary = dragonized_surface_dict[adjacent_pair[ID]]
         
-        # reset allocated unknowns
-        for surface in unknown_surfaces:
-            surface.construction = UnknownConstruction()
-        
         return dragonized_surfaces_by_zone
     
     def to_dragon(self):
@@ -671,7 +775,7 @@ class GreenRetrofitModel:
         surface_construction_dict = {
             k: v.to_dragon(material_dict=material_dict)
             for k, v in self.get_unique_surface_constructions().items()
-            if not isinstance(v, UnknownConstruction)
+            if (isinstance(v, SurfaceConstruction) and v.vintage_layer_position is None) or isinstance(v, OpenConstruction)
         }
         fenestration_construction_dict = {
             k: v.to_dragon()
@@ -729,10 +833,20 @@ class GreenRetrofitModel:
                 )            
         
         # photovoltaic system
-        pv_dict = {
-            pv.ID: pv.to_dragon()
-            for pv in self.pv
-        }
+        pv_dict = {}
+        for pv in self.pv:
+            if pv.ID in pv_dict:
+                pv_dict[pv.ID].area += pv.area
+            else:
+                pv_dict[pv.ID] = pv.to_dragon()
+        pv_list = list(pv_dict.values())
+        
+        # windturbine system
+        wt_list = []
+        for index, windturbine_spec in enumerate(self.windtb):
+            each_turbine = windturbine_spec.to_dragon()
+            each_turbine.name += f":{index}"
+            wt_list.append(each_turbine)
         
         # model
         em = idragon.EnergyModel(
@@ -751,7 +865,8 @@ class GreenRetrofitModel:
                 )
                 for zone in self.zone
             ],
-            pv=list(pv_dict.values())
+            pv=pv_list,
+            wt=wt_list,        
         )
         
         return em
@@ -814,18 +929,14 @@ class GreenRetrofitResult:
         return energy
     
     def get_dhw_servers(self) -> list[SourceSystem]:
-        dhw_servers = [
-            source
-            for source in self.model.source_system
-            if hasattr(source, "hotwater_supply") and source.hotwater_supply
-        ]
+        
+        dhw_servers = self.model.hotwater
 
         if len(dhw_servers) == 0:
             dhw_servers = [
                 Boiler(
                     "HotWaterBoiler",
                     Fuel.NATURALGAS,
-                    True,
                     0.85,
                     None,
                 )
@@ -885,11 +996,11 @@ class GreenRetrofitResult:
             Fuel.NATURALGAS     : "NaturalGas" ,
             Fuel.LPG            : "Propane"    ,
             Fuel.OIL            : "Diesel"     ,
-            Fuel.DISTRICTHEATING: "OtherFuels" ,
+            Fuel.BIOMASS        : "Coal"       ,
         }
         
         df_site = pd.DataFrame(index=[v.name for v in Fuel], columns=list(usecol_map.keys())).map(lambda _: [float(0)]*12)
-        for fuel_type in Fuel:
+        for fuel_type in fuel_name_in_energyplus.keys():
             
             # check if the fuel is used
             table_name = f"EndUseEnergyConsumption{fuel_name_in_energyplus[fuel_type]}Monthly"
@@ -907,7 +1018,13 @@ class GreenRetrofitResult:
         hotwater_energy_dict = self.calc_domestic_hotwater_site_energy()
         for fuel, energy in hotwater_energy_dict.items():
             df_site.loc[fuel, "hotwater"] = energy
-        
+            
+        # district heating and cooling
+        if len([sys for sys in self.model.source_system if isinstance(sys, DistrictHeating)]) > 0:
+            df_site.loc[Fuel.DISTRICTHEATING.name, "heating"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTHEATINGWATER:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+        if len([sys for sys in self.model.source_system if isinstance(sys, DistrictCooling)]) > 0:
+            df_site.loc[Fuel.DISTRICTCOOLING.name, "cooling"] = list(self.result.tbl["EPS_DISTRICT_MONTHLY"].iloc[:12]["DISTRICTCOOLING:PLANT [kWh]"].astype(float).map(lambda v: round(v/self.area, GreenRetrofitResult.VALID_DIGITS)))
+
         # On-site PV generation used within the facility
         table_name = "ELECTRICITYBALANCEMONTHLY"
 

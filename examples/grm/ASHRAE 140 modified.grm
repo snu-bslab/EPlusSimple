@@ -23,7 +23,9 @@
                            "SUPL-0x000000",
                            "SUPL-0x000001"
                         ],
-                        "ventilation_systems": [],
+                        "ventilation_system_assignments": [
+
+                        ],
                         "surfaces": [
                             {
                                 "id": "SURF-0x000000",
@@ -106,13 +108,141 @@
                 ]
             }
         ],
+        "renewable_energy_system_assignments":[
+
+        ],
+        "hotwater_source_system_ids":[
+            "SRCE-0x000001"
+        ]     
+    },
+    "resources": {
+        "profiles": [
+
+        ],
+        "materials": [
+            {
+                "id": "MTRL-0x000000",
+                "name": "Plasterboard",
+                "conductivity": 0.16,
+                "density": 950.0,
+                "specific_heat": 840
+            },
+            {
+                "id": "MTRL-0x000001",
+                "name": "Fiberglass quilt",
+                "conductivity": 0.04,
+                "density": 12.0,
+                "specific_heat": 840
+            },
+            {
+                "id": "MTRL-0x000002",
+                "name": "Wood siding",
+                "conductivity": 0.14,
+                "density": 530.0,
+                "specific_heat": 900
+            },
+            {
+                "id": "MTRL-0x000003",
+                "name": "Timber flooring",
+                "conductivity": 0.14,
+                "density": 650.0,
+                "specific_heat": 1200
+            },
+            {
+                "id": "MTRL-0x000004",
+                "name": "Insulation",
+                "conductivity": 0.04,
+                "density": 0.01,
+                "specific_heat": 100
+            },
+            {
+                "id": "MTRL-0x000005",
+                "name": "Roofdeck",
+                "conductivity": 0.14,
+                "density": 530.0,
+                "specific_heat": 900
+            }
+        ],
+        "surface_constructions": [
+            {
+                "id": "CTSF-0x000000",
+                "name": "외벽",
+                "vintage_layer_position": null,
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000002",
+                        "thickness": 0.009000000000000001
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.066
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.012
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000001",
+                "name": "바닥",
+                "vintage_layer_position": null,
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000004",
+                        "thickness": 1.0030000000000001
+                    },
+                    {
+                        "material_id": "MTRL-0x000003",
+                        "thickness": 0.025
+                    }
+                ]
+            },
+            {
+                "id": "CTSF-0x000002",
+                "name": "천장",
+                "vintage_layer_position": null,
+                "layers": [
+                    {
+                        "material_id": "MTRL-0x000005",
+                        "thickness": 0.019
+                    },
+                    {
+                        "material_id": "MTRL-0x000001",
+                        "thickness": 0.1118
+                    },
+                    {
+                        "material_id": "MTRL-0x000000",
+                        "thickness": 0.01
+                    }
+                ]
+            }
+        ],
+        "fenestration_constructions": [
+            {
+                "id": "CTFN-0x000000",
+                "name": "Clear Double-Pane Glazing",
+                "is_transparent": true,
+                "u": 2.1,
+                "g": 0.769
+            }
+        ],
         "supply_systems": {
-            "air_handling_unit":[
+            "dx_indoor_unit":[
                 {
                     "id": "SUPL-0x000000",
                     "name": "실내기-실",
                     "source_system_id": "SRCE-0x000000"
                 }
+            ],
+            "fan_coil_unit": [
+
+            ],
+            "radiator": [
+
+            ],
+            "electric_radiator": [
+
             ],
             "radiant_floor":[
                 {
@@ -120,6 +250,9 @@
                     "name":"바닥난방",
                     "source_system_id": "SRCE-0x000001"
                 }
+            ],
+            "electric_radiant_floor": [
+
             ]
         },
         "source_systems": {
@@ -134,122 +267,38 @@
                     "fuel_type": "electricity"
                 }
             ],
+            "chiller": [
+
+            ],
+            "absorption_chiller": [
+
+            ],
+            "district_cooling": [
+
+            ],
             "boiler": [
                 {
                     "id": "SRCE-0x000001",
-                    "name": "보보일러",
-                    "fuel_type": "lpg",
-                    "hotwater_supply": true
+                    "name": "보일러",
+                    "fuel_type": "lpg"
                 }
-            ]
+            ],
+            "district_heating": [
 
-        },
-        "ventilation_systems": [],
-        "photovoltaic_systems": []
-    },
-    "materials": [
-        {
-            "id": "MTRL-0x000000",
-            "name": "Plasterboard",
-            "conductivity": 0.16,
-            "density": 950.0,
-            "specific_heat": 840
-        },
-        {
-            "id": "MTRL-0x000001",
-            "name": "Fiberglass quilt",
-            "conductivity": 0.04,
-            "density": 12.0,
-            "specific_heat": 840
-        },
-        {
-            "id": "MTRL-0x000002",
-            "name": "Wood siding",
-            "conductivity": 0.14,
-            "density": 530.0,
-            "specific_heat": 900
-        },
-        {
-            "id": "MTRL-0x000003",
-            "name": "Timber flooring",
-            "conductivity": 0.14,
-            "density": 650.0,
-            "specific_heat": 1200
-        },
-        {
-            "id": "MTRL-0x000004",
-            "name": "Insulation",
-            "conductivity": 0.04,
-            "density": 0.01,
-            "specific_heat": 100
-        },
-        {
-            "id": "MTRL-0x000005",
-            "name": "Roofdeck",
-            "conductivity": 0.14,
-            "density": 530.0,
-            "specific_heat": 900
-        }
-    ],
-    "surface_constructions": [
-        {
-            "id": "CTSF-0x000000",
-            "name": "외벽",
-            "layers": [
-                {
-                    "material_id": "MTRL-0x000002",
-                    "thickness": 0.009000000000000001
-                },
-                {
-                    "material_id": "MTRL-0x000001",
-                    "thickness": 0.066
-                },
-                {
-                    "material_id": "MTRL-0x000000",
-                    "thickness": 0.012
-                }
             ]
         },
-        {
-            "id": "CTSF-0x000001",
-            "name": "바닥",
-            "layers": [
-                {
-                    "material_id": "MTRL-0x000004",
-                    "thickness": 1.0030000000000001
-                },
-                {
-                    "material_id": "MTRL-0x000003",
-                    "thickness": 0.025
-                }
+        "ventilation_systems": {
+            "energy_recovery_ventilator": [
+
             ]
         },
-        {
-            "id": "CTSF-0x000002",
-            "name": "천장",
-            "layers": [
-                {
-                    "material_id": "MTRL-0x000005",
-                    "thickness": 0.019
-                },
-                {
-                    "material_id": "MTRL-0x000001",
-                    "thickness": 0.1118
-                },
-                {
-                    "material_id": "MTRL-0x000000",
-                    "thickness": 0.01
-                }
+        "renewable_energy_systems": {
+            "photovoltaic_panel": [
+
+            ],
+            "wind_turbine": [
+
             ]
         }
-    ],
-    "fenestration_constructions": [
-        {
-            "id": "CTFN-0x000000",
-            "name": "Clear Double-Pane Glazing",
-            "is_transparent": true,
-            "u": 2.1,
-            "g": 0.769
-        }
-    ]
+    }
 }
