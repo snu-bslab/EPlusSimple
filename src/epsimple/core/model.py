@@ -629,7 +629,7 @@ class GreenRetrofitModel:
                 
                 # create a cool-roof construction and save it to the dictionary
                 coolroof_construction = dragon.Construction(
-                    f"{SpecialTag.COOLROOF}{original_construction.name}",
+                    f"{SpecialTag.COOLROOF}{original_construction.name}_for_{surface.ID}",
                     coolroof_layer, *original_construction.layers[1:]
                 )
                 surface_construction_dict[coolroof_construction.name] = coolroof_construction
