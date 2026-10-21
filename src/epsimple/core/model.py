@@ -516,11 +516,11 @@ class GreenRetrofitModel:
         photovoltaic_system_dict = {
             photovoltaic_input.id: PhotoVoltaicSystem.from_json(photovoltaic_input)
             for photovoltaic_input in input.resources.renewable_energy_systems.photovoltaic_panel
-        }
+        } if hasattr(input.renewable_energy_systems, "photovoltaic_panel") else {}
         windturbine_system_dict = {
             wind_input.id: WindTurbineSystem.from_json(wind_input)
             for wind_input in input.resources.renewable_energy_systems.wind_turbine
-        }
+        } if hasattr(input.renewable_energy_systems, "wind_turbine") else {}
         
         # create a GreenRetrofitModel
         grm = cls(
