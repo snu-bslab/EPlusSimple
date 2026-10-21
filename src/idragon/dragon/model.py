@@ -114,7 +114,7 @@ class EnergyModel:
         idf["SizingPeriod:WeatherFileDays"].append(["DesignSummer",8,1,8,31])
         idf["Timestep"].append({"Number of Timesteps per Hour": 6})
         idf["RunPeriod"].append(["Year-Round", 1, 1, Setting.DEFAULT_YEAR, 12, 31, Setting.DEFAULT_YEAR])
-        idf["GlobalGeometryRules"][0] =IdfObject("GlobalGeometryRules", ["UpperLeftCorner", "CounterClockwise", "World"])
+        idf["GlobalGeometryRules"][0] =IdfObject("GlobalGeometryRules", ["UpperLeftCorner", "CounterClockwise", "Relative"])
         
         # global objects
         for schedule_type in ScheduleType:
