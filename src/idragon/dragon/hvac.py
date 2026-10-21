@@ -2021,7 +2021,7 @@ class SupplySystem(ABC):
         return f"{type(self).__name__}_named_{self.name}_for_{zone.name}"
     
     def idf_get_demandbranchname(self, zone:Zone) -> str:
-        return f"{self.source.idf_loopname} Demand Main_{type(self).__name__}_for_{zone.name}"
+        return f"{self.source.idf_loopname} Demand Main_{self.idf_get_objname(zone)}_for_{zone.name}"
 
     def idf_get_airinletnodename(self, zone:Zone) -> str:
         return f"{self.idf_get_objname(zone)} Air InletNode"
