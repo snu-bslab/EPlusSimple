@@ -341,7 +341,7 @@ class Surface:
         ) -> dragon.Surface:
         
         if self.reflectance is not None:
-            construction = surface_construction_dict[f"{SpecialTag.COOLROOF}{self.construction.ID}"]
+            construction = surface_construction_dict[f"{SpecialTag.COOLROOF}{self.construction.ID}_for_{self.ID}"]
         else:
             construction = surface_construction_dict[self.construction.ID]
         
