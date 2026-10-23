@@ -291,9 +291,9 @@ class Surface:
                 if self.azimuth is not None:
                     azimuth_radian = math.radians(self.azimuth)
                 else:
-                    hash_value = hashlib.sha256(self.ID.removeprefix(SpecialTag.CLONE.value).encode("utf-8")).hexdigest()
+                    hash_value = hashlib.sha256(self.ID.removeprefix(f"{SpecialTag.CLONE}").encode("utf-8")).hexdigest()
                     azimuth_radian = int(hash_value[:12], 16) / (16**12) * 2 * math.pi
-                    if self.ID.startswith(SpecialTag.CLONE.value):
+                    if self.ID.startswith(f"{SpecialTag.CLONE}"):
                         azimuth_radian = (azimuth_radian + math.pi) % (2*math.pi)
                         
                 x = math.cos(azimuth_radian) * width/2
