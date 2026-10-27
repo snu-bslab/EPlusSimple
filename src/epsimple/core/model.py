@@ -486,12 +486,7 @@ class GreenRetrofitModel:
             fenestration_input.id: FenestrationConstruction.from_json(fenestration_input)
             for fenestration_input in input.resources.fenestration_constructions
         }
-        
-        # special constructions
-        surface_construction_dict["open"]    = OpenConstruction()
-        surface_construction_dict["vintage_regulation"] = VintageConstruction()
-        surface_construction_dict["current_regulation"] = CurrentConstruction()
-        
+                
         # profile
         profile_dict = {
             profile_input.id: KoreanUsageProfile.from_json(profile_input)

@@ -314,13 +314,18 @@ class Surface:
         fenestration_construction_dict:dict[str, FenestrationConstruction],
         ) -> Surface:
         
-        match input.construction_id:
-            case "open": 
-                construction = OpenConstruction()
-            case None:
-                construction = VintageConstruction()
-            case _:
-                construction = surface_construction_dict.get(input.construction_id)
+        if input.construction_id.startswith(SpecialTag.RESERVED):
+            
+            match input.construction_id.removeprefix(SpecialTag.RESERVED):
+                case "open":
+                    construction = OpenConstruction()
+                case "vintage_regulation":
+                    construction = VintageConstruction()
+                case "current_regulation":
+                    construction = CurrentConstruction()
+        
+        else:
+            construction = surface_construction_dict[input.construction_id]
         
         return Surface(
             input.name,
@@ -785,8 +790,8 @@ class Zone:
         ) -> Zone:
         
         # profile
-        if input.profile != "CUSTOM":
-            profile = Profile._DB[input.profile]
+        if input.profile_id.startswith(SpecialTag.RESERVED):
+            profile = Profile._DB[input.profile_id.removeprefix(SpecialTag.RESERVED)]
         else:
             profile = profile_dict[input.profile_id]
         

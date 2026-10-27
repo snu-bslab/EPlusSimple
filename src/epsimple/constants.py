@@ -117,6 +117,9 @@ class SpecialTag(str, Enum):
     by being prepended to an instance ID
     """
     
+    # reserved ket designator
+    RESERVED = "@"
+    
     # general
     SPECIAL = "SPECIAL"
     

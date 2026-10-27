@@ -17,7 +17,7 @@
                         "id": "ZONE-0x000000",
                         "name": "실",
                         "height": 2.7,
-                        "profile": "소규모사무실",
+                        "profile_id": "@소규모사무실",
                         "light_density": 10,
                         "supply_system_ids": [
                            "SUPL-0x000000",
@@ -111,7 +111,6 @@
                         "id": "ZONE-0x000001",
                         "name": "실",
                         "height": 2.7,
-                        "profile": "CUSTOM",
                         "profile_id": "PROF-0x000000",
                         "light_density": 10,
                         "supply_system_ids": [
@@ -129,7 +128,7 @@
                                 "type": "floor",
                                 "boundary_condition": "ground",
                                 "area": 48.0,
-                                "construction_id": "current_regulation",
+                                "construction_id": "@current_regulation",
                                 "fenestrations": []
                             },
                             {
@@ -139,7 +138,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 21.6,
                                 "azimuth": 0.0,
-                                "construction_id": "vintage_regulation",
+                                "construction_id": "@vintage_regulation",
                                 "fenestrations": []
                             },
                             {
@@ -149,7 +148,7 @@
                                 "boundary_condition": "zone",
                                 "area": 16.2,
                                 "adjacent_zone_id": "ZONE-0x000000",
-                                "construction_id": "open",
+                                "construction_id": "@open",
                                 "fenestrations": []
                             },
                             {
@@ -196,7 +195,7 @@
                                 "boundary_condition": "outdoors",
                                 "area": 48.0,
                                 "coolroof_reflectance": 0.7,
-                                "construction_id": "current_regulation",
+                                "construction_id": "@current_regulation",
                                 "fenestrations": []
                             }
                         ]
