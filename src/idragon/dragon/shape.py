@@ -297,6 +297,10 @@ class Surface:
             self.__boundary = SurfaceBoundaryCondition(value)
     
     @property
+    def adjacent(self):
+        return self.__adjacent
+    
+    @property
     def vertex(self):
         return self.__vertex
     

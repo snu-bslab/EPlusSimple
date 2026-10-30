@@ -33,10 +33,13 @@ from .profile import (
     Schedule    ,
     ScheduleType,
 )
-
+from .construction import (
+    Material,
+    Layer,
+)
 # settings
 if TYPE_CHECKING:
-    from .shape        import Zone
+    from .shape        import Zone, Surface
     from .construction import Construction
 
 # ---------------------------------------------------------------------------- #
@@ -1851,6 +1854,45 @@ class SequentialLoadFractionController(SupplySystemToIdfPostProcessor):
             
         return
 
+
+class RadiantFloorConstructionAppender(SupplySystemToIdfPostProcessor):
+    
+    def run(self, idf:IDF) -> None:
+        
+        target_surfaces = self.supply.get_target_surfaces(self.zone)
+        target_construction_names = [
+            f"{surf.construction.name}:for:{surf.name}"
+            for surf in target_surfaces
+        ]
+        
+        target_adjacent_construction_names = [
+            f"{surf.adjacent.construction.name}:for:{surf.adjacent.name}"
+            for surf in target_surfaces
+            if surf.adjacent is not None
+        ]
+        
+        for idfobj in idf["Construction"]:
+            
+            if idfobj["Name"] in target_construction_names:
+                
+                cur_layers = len([field for field in idfobj.values() if field is not None]) -1
+                idfobj[cur_layers+1] = self.supply.idf_get_lowerlayername(self.zone)
+                idfobj[cur_layers+2] = self.supply.idf_get_upperlayername(self.zone)
+                
+            if idfobj["Name"] in target_adjacent_construction_names:
+                            
+                cur_layers = len([field for field in idfobj.values() if field is not None]) -1
+                for n, material_name in zip(range(3, 3+cur_layers), [
+                    field for field
+                    in list(idfobj.values())[1:]
+                    if field is not None
+                ]):
+                    idfobj[n] = material_name
+                idfobj[1] = self.supply.idf_get_upperlayername(self.zone)
+                idfobj[2] = self.supply.idf_get_lowerlayername(self.zone)
+    
+        return
+
 class SupplySystem(ABC):
     
     @abstractmethod
@@ -2461,6 +2503,14 @@ class RadiantFloor(SupplySystem):
     def coolable(self) -> bool:
         return False
     
+    def get_target_surfaces(self, zone:Zone) -> list[Surface]:
+        
+        RADIANTABLE_MINIMUM_SURFACE_FRACTION = 1E-3
+        return [
+            surface for surface in zone.floor_surface 
+            if surface.area > zone.floor_area * RADIANTABLE_MINIMUM_SURFACE_FRACTION
+        ]
+    
     """ idf-related
     """
 
@@ -2468,9 +2518,15 @@ class RadiantFloor(SupplySystem):
     def idf_objtypename(self) -> str:
         return "ZoneHVAC:LowTemperatureRadiant:VariableFlow"
     
+    def idf_get_upperlayername(self, zone) -> str:
+        return f"upper mortar layer for {self.idf_get_objname(zone)}"
+    
+    def idf_get_lowerlayername(self, zone) -> str:
+        return f"lower mortar layer for {self.idf_get_objname(zone)}"
+    
     @staticmethod
     def _get_internal_heatsource_layer(construction:Construction):
-        return max(len(construction.layers) - 1, 1)
+        return max(len(construction.layers) + 1, 1)
     
     def to_idf_object(self,
         zone       :Zone,
@@ -2486,11 +2542,26 @@ class RadiantFloor(SupplySystem):
             raise ValueError(
                 f"그런건 못해요..."
             )
+            
+        target_surfaces = self.get_target_surfaces(zone)
         
-        RADIANTABLE_MINIMUM_SURFACE_FRACTION = 1E-3
-        target_surfaces = [
-            surface for surface in zone.floor_surface 
-            if surface.area > zone.floor_area * RADIANTABLE_MINIMUM_SURFACE_FRACTION
+        obj_dedicated_materials = [
+            Layer(
+                self.idf_get_upperlayername(zone),
+                Material(
+                    f"upper mortar for {self.idf_get_objname(zone)}",
+                    1.2, 2000, 840,
+                ),
+                0.03
+            ).to_idf_object(),
+            Layer(
+                self.idf_get_lowerlayername(zone),
+                Material(
+                    f"lower mortar for {self.idf_get_objname(zone)}",
+                    1.2, 2000, 840,
+                ),
+                0.01
+            ).to_idf_object(),
         ]
         
         obj_internal_heatsources = [
@@ -2551,10 +2622,11 @@ class RadiantFloor(SupplySystem):
         
         postprocessors = [
             DemandBranchAppender(self, zone),
-            EquipmentListAppender(self, zone)
+            EquipmentListAppender(self, zone),
+            RadiantFloorConstructionAppender(self, zone),
         ]
         
-        return obj_internal_heatsources + obj_radiant_floor + obj_branches, postprocessors
+        return obj_dedicated_materials + obj_internal_heatsources + obj_radiant_floor + obj_branches, postprocessors
 
 
 class ElectricRadiantFloor(SupplySystem):
