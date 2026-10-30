@@ -8,9 +8,9 @@ title: EPlusSimple
 
 type: software
 
-version: 0.7.1
+version: 0.7.2
 
-date-released: 2026-09-06
+date-released: 2026-10-30
 
 license: MIT
 
@@ -49,6 +49,12 @@ authors:
     email: chulhong.park@snu.ac.kr
     orcid: https://orcid.org/0009-0003-4716-8169
 
+  - family-names: Song
+    given-names: Tae Yong
+    affiliation: Department of Architecture and Architectural Engineering, Seoul National University
+    email: sty216@snu.ac.kr
+    orcid: https://orcid.org/0009-0005-1401-2197
+
   - family-names: Park
     given-names: Cheol Soo
     affiliation: Department of Architecture and Architectural Engineering, Seoul National University
@@ -61,7 +67,7 @@ preferred-citation:
 
   title: EPlusSimple
 
-  version: 0.7.1
+  version: 0.7.2
 
   year: 2026
 
@@ -75,6 +81,9 @@ preferred-citation:
 
     - family-names: Park
       given-names: Chul Hong
+
+    - family-names: Song
+      given-names: Tae Yong
 
     - family-names: Park
       given-names: Cheol Soo
