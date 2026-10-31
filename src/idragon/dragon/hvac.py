@@ -2655,15 +2655,25 @@ class ElectricRadiantFloor(SupplySystem):
     def coolable(self) -> bool:
         return False
     
+    def get_target_surfaces(self, zone:Zone) -> list[Surface]:
+        
+        return zone.floor_surface
+    
     """ idf-related
     """
     @property
     def idf_objtypename(self) -> str:
         return "ZoneHVAC:LowTemperatureRadiant:Electric"
     
+    def idf_get_upperlayername(self, zone) -> str:
+        return f"upper mortar layer for {self.idf_get_objname(zone)}"
+        
+    def idf_get_lowerlayername(self, zone) -> str:
+        return f"lower mortar layer for {self.idf_get_objname(zone)}"
+    
     @staticmethod
     def _get_internal_heatsource_layer(construction:Construction):    
-        return max(len(construction.layers) - 1, 1)
+        return max(len(construction.layers) + 1, 1)
     
     def to_idf_object(self,
         zone       :Zone,
@@ -2680,6 +2690,25 @@ class ElectricRadiantFloor(SupplySystem):
                 f"그런건 못해요..."
             )
 
+        obj_dedicated_materials = [
+            Layer(
+                self.idf_get_upperlayername(zone),
+                Material(
+                    f"upper mortar for {self.idf_get_objname(zone)}",
+                    1.2, 2000, 840,
+                ),
+                0.03
+            ).to_idf_object(),
+            Layer(
+                self.idf_get_lowerlayername(zone),
+                Material(
+                    f"lower mortar for {self.idf_get_objname(zone)}",
+                    1.2, 2000, 840,
+                ),
+                0.01
+            ).to_idf_object(),
+        ]
+        
         obj_internal_heatsources = [
             IdfObject("ConstructionProperty:InternalHeatSource",{
                 "Name": f"{surface.name} Internal Heat Source",
@@ -2689,7 +2718,7 @@ class ElectricRadiantFloor(SupplySystem):
                 "Dimensions for the CTF Calculation": 1,
                 "Tube Spacing": 0.3,
             }, ignore_default=False)
-            for surface in zone.floor_surface
+            for surface in self.get_target_surfaces(zone)
         ]
         
         flow_fractions = [surface.area/zone.floor_area for surface in zone.floor_surface]
@@ -2721,9 +2750,10 @@ class ElectricRadiantFloor(SupplySystem):
         
         postprocessors = [
             EquipmentListAppender(self, zone),
+            RadiantFloorConstructionAppender(self, zone),
         ]
         
-        return obj_internal_heatsources + obj_radiant_floor, postprocessors
+        return obj_dedicated_materials + obj_internal_heatsources + obj_radiant_floor, postprocessors
 
 # ---------------------------------------------------------------------------- #
 #                                HOTWATER SYSTEM                               #
