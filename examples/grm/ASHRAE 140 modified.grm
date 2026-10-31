@@ -17,7 +17,7 @@
                         "id": "ZONE-0x000000",
                         "name": "실",
                         "height": 2.7,
-                        "profile": "@소규모사무실",
+                        "profile_id": "@소규모사무실",
                         "light_density": 10,
                         "supply_system_ids": [
                            "SUPL-0x000000",
