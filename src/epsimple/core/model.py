@@ -106,21 +106,20 @@ def address_to_weather(
     vintage:datetime,
     ) -> tuple[str, str, str]:
     
-    sigungu_match = re.search(r"^[\w ]+[시군구](?= |$)", address)
-    if sigungu_match is None:
+    if address not in ADDR_WEATHER_TABLE.index:
         raise InvalidAddressError(
-            f"Cannot find '시' or '군' or '구' in '{address}'"
+            f"Unknown region name: '{address}'. "
+            "Use an exact region name from the address database."
         )
-    
-    sigungu = sigungu_match.group(0)
-    sigungu_info = ADDR_WEATHER_TABLE.loc[sigungu]
+
+    sigungu_info = ADDR_WEATHER_TABLE.loc[address]
     
     terrain = sigungu_info["terrain"]
     weather_location = sigungu_info["기상지역명"]
     weather_filepath = Directory.WEATHER_DATA_DIR /  sigungu_info["EPW파일명"]
     
-    vintage_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
-    current_climate = CLIMATE_TABLE.at[sigungu, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= datetime.now().strftime(r"%Y%m%d"))]
+    vintage_climate = CLIMATE_TABLE.at[address, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= vintage.strftime(r"%Y%m%d"))]
+    current_climate = CLIMATE_TABLE.at[address, max(datestr for datestr in CLIMATE_TABLE.columns if datestr <= datetime.now().strftime(r"%Y%m%d"))]
     
     return terrain, vintage_climate, current_climate, weather_location, weather_filepath
 
