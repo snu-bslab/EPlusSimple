@@ -12,6 +12,8 @@ REM   run
 REM   run help
 REM   run setup [args...]
 REM   run build-go [args...]
+REM   run build-docs [args...]
+REM   run regression-test
 REM   run release [args...]
 REM   run py [python args...]
 REM   run scripts\path\script.ps1 [args...]

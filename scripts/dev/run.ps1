@@ -12,6 +12,8 @@
 #   run help
 #   run setup [args...]
 #   run build-go [args...]
+#   run build-docs [args...]
+#   run regression-test
 #   run release [args...]
 #   run py [python-args...]
 #   run python [python-args...]
@@ -19,9 +21,10 @@
 #   run path\to\script.py [args...]
 #
 # Design:
-#   - Common commands are exposed directly: run setup, run build-go, run release.
+#   - Common commands are exposed directly: setup, build-go, build-docs,
+#     regression-test, and release.
 #   - Runtime Python is exposed as: run py / run python.
-#   - Important Python scripts can later be added to $DirectPythonScriptCommands.
+#   - Stable Python scripts are registered in $DirectPythonScriptCommands.
 #   - No EPlusSimple-specific Python environment variables are set here.
 # ============================================================================
 
@@ -50,6 +53,10 @@ $DirectPowerShellCommands = [ordered]@{
         Path = 'scripts\dev\build-go.ps1'
         Description = 'Build Go executables.'
     }
+    'build-docs' = @{
+        Path = 'scripts\dev\build-docs.ps1'
+        Description = 'Build documentation PDFs.'
+    }
     'release' = @{
         Path = 'scripts\release\release.ps1'
         Description = 'Build release outputs.'
@@ -59,15 +66,12 @@ $DirectPowerShellCommands = [ordered]@{
 # Direct Python-script commands.
 # Keep this list conservative. Add only scripts that are stable enough to expose
 # as repository-level commands.
-#
-# Example:
-# $DirectPythonScriptCommands = [ordered]@{
-#     'regressiontest' = @{
-#         Path = 'scripts\dev\regressiontest.py'
-#         Description = 'Run regression tests.'
-#     }
-# }
-$DirectPythonScriptCommands = [ordered]@{}
+$DirectPythonScriptCommands = [ordered]@{
+    'regression-test' = @{
+        Path = 'scripts\dev\regressiontest.py'
+        Description = 'Run regression tests and update the report tables.'
+    }
+}
 
 function Write-Usage {
     Write-Host ''
@@ -78,6 +82,8 @@ function Write-Usage {
     Write-Host '  run help'
     Write-Host '  run setup [args...]'
     Write-Host '  run build-go [args...]'
+    Write-Host '  run build-docs [args...]'
+    Write-Host '  run regression-test'
     Write-Host '  run release [args...]'
     Write-Host '  run py [python-args...]'
     Write-Host '  run python [python-args...]'
@@ -88,16 +94,16 @@ function Write-Usage {
 
     foreach ($name in $DirectPowerShellCommands.Keys) {
         $description = $DirectPowerShellCommands[$name].Description
-        Write-Host ('  {0,-12} {1}' -f $name, $description)
+        Write-Host ('  {0,-16} {1}' -f $name, $description)
     }
 
     foreach ($name in $DirectPythonScriptCommands.Keys) {
         $description = $DirectPythonScriptCommands[$name].Description
-        Write-Host ('  {0,-12} {1}' -f $name, $description)
+        Write-Host ('  {0,-16} {1}' -f $name, $description)
     }
 
-    Write-Host ('  {0,-12} {1}' -f 'py', 'Run runtime\PythonV3-12-7\python.exe.')
-    Write-Host ('  {0,-12} {1}' -f 'python', 'Alias of py.')
+    Write-Host ('  {0,-16} {1}' -f 'py', 'Run runtime\PythonV3-12-7\python.exe.')
+    Write-Host ('  {0,-16} {1}' -f 'python', 'Alias of py.')
     Write-Host ''
     Write-Host 'Python import helper:'
     Write-Host '  run py -i'

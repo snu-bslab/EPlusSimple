@@ -88,8 +88,12 @@ def grrs2df(grrs_dict: dict[str, GreenRetrofitResult]):
 
 def df2latex(df: pd.DataFrame) -> str:
     latex_str = df.to_latex(float_format="%.1f", escape=False)
-    latex_str = re.sub(r"(\\multicolumn\{\d+\})\{[lrc]\}", r"\1{|c}", latex_str)
-    return latex_str
+    latex_str = re.sub(
+        r"(\\multicolumn\{\d+\})\{[lrc]\}",
+        r"\1{|c}",
+        latex_str,
+    )
+    return latex_str.rstrip("\r\n")
 
 # ---------------------------------------------------------------------------- #
 #                                 PROFILE TEST                                 #
@@ -154,20 +158,20 @@ def test_weather():
         "경상북도 안동시",
         "대전광역시 서구",
         "서울특별시 중구",
-        "세종특별자치시 세종시",
+        "세종특별자치시",
         "인천광역시 남동구",
-        "전북특별자치도 전주시 완산구",
+        "전북특별자치도 전주시",
         "충청남도 홍성군",
-        "충청북도 청주시 상당구",
+        "충청북도 청주시",
         # 남부
-        "경상남도 창원시 의창구",
-        "광주광역시 서구",
+        "경상남도 창원시",
+        "전남광주통합특별시 서구",
         "대구광역시 달서구",
         "부산광역시 연제구",
         "울산광역시 남구",
-        "전라남도 무안군",
+        "전남광주통합특별시 무안군",
         # 제주
-        "제주특별자치도 제주시",
+        "제주특별자치도",
     ]
     
     with Pool() as pool:
