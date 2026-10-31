@@ -35,7 +35,7 @@ class Directory:
 class PackageInfo:
     
     NAME    = "epsimple"
-    VERSION = (0,7,1)
+    VERSION = (0,8,0)
     REQUIRED_PYTHON = (3,12)
     
     

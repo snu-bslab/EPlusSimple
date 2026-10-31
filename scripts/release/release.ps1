@@ -27,7 +27,7 @@
 [CmdletBinding()]
 param(
     # Release version without leading V.
-    [string]$Version = '0.7.1',
+    [string]$Version,
 
     # Skip regression only when iterating on packaging logic.
     [switch]$SkipRegressionTest,
