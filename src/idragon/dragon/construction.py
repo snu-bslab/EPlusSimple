@@ -179,7 +179,7 @@ class Layer:
     
     @thickness.setter
     @validate_type(int, float)
-    @validate_range(min=math.nextafter(0,math.inf))
+    @validate_range(min=math.nextafter(0.003,math.inf))
     def thickness(self, value:int|float) -> None:
         self.__thickness = value
     
