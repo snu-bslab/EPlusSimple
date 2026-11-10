@@ -417,6 +417,15 @@ class Surface:
                 ])
                 for door, door_copied in zip(self.door, self.boundary.door)
             ]
+            door_idfobjects += [
+                IdfObject("SurfaceProperty:ConvectionCoefficients", {
+                    "Surface Name": door.name,
+                    "Convection Coefficient 1 Location": "Inside",
+                    "Convection Coefficient 1 Type": "Simple",
+                })
+                for door in self.door
+                if isinstance(door.construction, NoMassConstruction)
+            ]
         else:
             window_idfobjects = [
                 IdfObject("Window",[
@@ -440,7 +449,16 @@ class Surface:
                     *self._get_fenestration_width_and_height(door.area)
                 ])
                 for door in self.door
-            ]       
+            ]
+            door_idfobjects += [
+                IdfObject("SurfaceProperty:ConvectionCoefficients", {
+                    "Surface Name": door.name,
+                    "Convection Coefficient 1 Location": "Inside",
+                    "Convection Coefficient 1 Type": "Simple",
+                })
+                for door in self.door
+                if isinstance(door.construction, NoMassConstruction)
+            ]  
         
         # shading objects
         shade_objs = []
