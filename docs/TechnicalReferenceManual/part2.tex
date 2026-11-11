@@ -328,7 +328,7 @@ grjson에서 다른 객체의 지칭은 \texttt{ID}값에 기반하여 이루어
 
 \paragraph{renewable\_energy\_system\_assignments (신재생에너지설비 배치)} 건물에 설치되는 태양광패널과 풍력발전기의 ID 및 개수 목록. 설치하지 않는 경우 빈 배열 \texttt{[]}을 입력한다.
 
-\paragraph{hotwater\_source\_system\_ids (급탕 생산설비)} 급탕에 사용하는 생산설비의 ID 목록. \texttt{boiler} 또는 \texttt{district\_heating}을 참조한다. 여러 설비를 지정하면 중복 ID를 제외한 설비 수에 따라 급탕부하를 균등하게 분담한다. 빈 배열 \texttt{[]}을 입력하면 효율 0.85의 천연가스 보일러를 적용한다.
+\paragraph{hotwater\_source\_system\_ids (급탕 생산설비)} 급탕에 사용하는 생산설비의 ID 목록. \texttt{boiler} 또는 \texttt{district\_heating}을 참조한다. 여러 설비를 지정하면 중복 ID를 제외한 설비 수에 따라 급탕부하를 균등하게 분담한다. 빈 배열 \texttt{[]}을 입력하면 급탕 에너지사용량을 0으로 계산한다.
 
 \subsubsection{floor (층)} \label{subsubsection:ioref:floor}
 하위 \hyperref[subsubsection:ioref:zone]{\texttt{zone}}들을 층 단위로 구분하기 위한 클래스이다.

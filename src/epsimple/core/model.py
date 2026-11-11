@@ -921,55 +921,42 @@ class GreenRetrofitResult:
                     energy[date.month-1] += zone.profile.domestic_hotwater * zone.area * 1E-3
         
         return energy
-    
-    def get_dhw_servers(self) -> list[SourceSystem]:
         
-        dhw_servers = self.model.hotwater
-
-        if len(dhw_servers) == 0:
-            dhw_servers = [
-                Boiler(
-                    "HotWaterBoiler",
-                    Fuel.NATURALGAS,
-                    0.85,
-                    None,
-                )
-            ]
-
-        return list({server.ID: server for server in dhw_servers}.values())
-    
     def calc_domestic_hotwater_site_energy(self) -> dict[str, list[float]]:
-        demand = self.get_domestic_hotwater_energy()
-        dhw_servers = self.get_dhw_servers()
-
-        demand_per_server = [
-            v / self.area / len(dhw_servers)
-            for v in demand
-        ]
-
+        
         hotwater_energy = {
             fuel.name: [0.0] * 12
             for fuel in Fuel
         }
-
-        for server in dhw_servers:
-            if isinstance(server, DistrictHeating):
-                fuel = Fuel.DISTRICTHEATING.name
-                efficiency = 1.0
-
-            elif isinstance(server, Boiler):
-                fuel = Fuel(server.fuel).name
-                efficiency = server.efficiency
-
-            else:
-                raise RuntimeError(
-                    f"Unsupported DHW server: {type(server).__name__}"
-                )
-
-            hotwater_energy[fuel] = [
-                round(v_org + v_add / efficiency, GreenRetrofitResult.VALID_DIGITS)
-                for v_org, v_add in zip(hotwater_energy[fuel], demand_per_server)
+        
+        dhw_servers = self.model.hotwater
+        
+        if len(dhw_servers) > 0:
+            
+            demand = self.get_domestic_hotwater_energy()
+            demand_per_server = [
+                v / self.area / len(dhw_servers)
+                for v in demand
             ]
+
+            for server in dhw_servers:
+                if isinstance(server, DistrictHeating):
+                    fuel = Fuel.DISTRICTHEATING.name
+                    efficiency = 1.0
+
+                elif isinstance(server, Boiler):
+                    fuel = Fuel(server.fuel).name
+                    efficiency = server.efficiency
+
+                else:
+                    raise RuntimeError(
+                        f"Unsupported DHW server: {type(server).__name__}"
+                    )
+
+                hotwater_energy[fuel] = [
+                    round(v_org + v_add / efficiency, GreenRetrofitResult.VALID_DIGITS)
+                    for v_org, v_add in zip(hotwater_energy[fuel], demand_per_server)
+                ]
 
         return hotwater_energy
     
