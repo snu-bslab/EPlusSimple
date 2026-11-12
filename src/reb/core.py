@@ -17,7 +17,7 @@ from epsimple import (
 )
 from .preprocess import process_excel_file
 from .postprocess import 용도프로필적용 # 기존 현장조사체크리스트에서 변경 (v0-7-0)
-from .weather import get_weatherdata, sigungu_from_pk, pk_from_filename # v-070 수정사항
+from .weather import get_weatherdata, choose_pk # v-070 수정사항
 
 def rebexcel_to_idf_and_grm(
     input_filepath :str,
@@ -66,14 +66,12 @@ def run_rebexcel(
     if output_idf_filepath is None:
         output_idf_filepath = input_filepath.replace(r".xlsx",r".idf")
     
-    idf, grm = rebexcel_to_idf_and_grm(input_filepath, preprocess=preprocess)
-    
-    # specify weatherdata (v-070 수정사항: 건물정보 탭의 주소, 기상데이터옵션, 기준년도로 결정)
+    # specify weatherdata (v-070 수정사항: 건물정보 탭의 주소, 기상데이터옵션, 기준년도로 결정. PK 가 주소와 다르면 변환 전에 멈춤)
     building = pd.read_excel(input_filepath, sheet_name="건물정보", header=1).iloc[0]
-    pk = building.get("PK코드")
-    if sigungu_from_pk(pk) is None:
-        pk = pk_from_filename(input_filepath)
+    pk = choose_pk(building.get("PK코드"), input_filepath)
     weatherdata_filepath = get_weatherdata(building["주소"], building["기상데이터옵션"], building["기준년도"], pk)
+    
+    idf, grm = rebexcel_to_idf_and_grm(input_filepath, preprocess=preprocess)
     
     # run
     grr = GreenRetrofitResult(grm, idf.run(weatherdata_filepath))

@@ -64,4 +64,6 @@ if __name__ == "__main__":
     
     app = initizalize_app(template_dirname=TEMPLATE_DIRNAME)
     app.add_url_rule("/", "main", source.getpost , methods=["GET","POST"])
-    app.run(debug=True, host="0.0.0.0", port=5000)
+    for rule, endpoint, func in getattr(source, "EXTRA_ROUTES", []): # v-070 수정사항
+        app.add_url_rule(rule, endpoint, func)
+    app.run(debug=False, host="127.0.0.1", port=5000) # v-070 수정사항: 배포용 (내 PC 에서만 접속, 디버그 콘솔 끔)

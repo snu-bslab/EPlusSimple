@@ -2,6 +2,11 @@
 /launchers/uploads/
 *.log
 
+# v-070 수정사항: REB 런처 결과, 보고서 자료(masterdb 등 고객 자료), 업로드 임시 파일
+/결과/
+/보고서자료/
+/src/launcher/uploads/
+
 # 내가 추가한 것 (runtime, build)
 /dist/
 /runtime/

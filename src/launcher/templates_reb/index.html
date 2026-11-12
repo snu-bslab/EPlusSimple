@@ -25,10 +25,41 @@
         <input id="fileInputAfter" type="file" name="file_after" accept=".xlsx,.xls">
         <input id="fileInputAfterN" type="file" name="file_afterN" accept=".xlsx,.xls">
 
-        <div class="form-row" style="margin-top:1.5em;"><button class="btn" type="submit">시뮬레이션</button></div>
+        {# v-070 수정사항: 개별 보고서와 기상데이터 #}
+        <fieldset class="options">
+            <legend>개별 보고서 · 기상데이터</legend>
+            <div class="form-row">
+                <label for="fileInputComment" class="file-label option-label">comment.csv (선택)</label>
+                <div class="filename-box" id="filenameBoxComment">선택하지 않으면 보고서자료 폴더의 comment.csv 를 씁니다. 없으면 조사자 의견은 (미기입).</div>
+            </div>
+            <input id="fileInputComment" type="file" name="comment" accept=".csv">
+            <div class="form-row">
+                <label class="check"><input type="checkbox" name="make_report" checked> 개별 보고서 만들기 (엑셀)</label>
+                <label class="check"><input type="checkbox" name="make_pdf" checked> PDF 도 만들기 (Microsoft Excel 필요)</label>
+            </div>
+            <div class="form-row">
+                <label for="kmaKey" class="text-label">기상청 API 키</label>
+                <input id="kmaKey" class="text-input" type="password" name="kma_key" autocomplete="off" placeholder="실제기상(AMY) 파일이 없을 때만 필요. 저장하지 않습니다">
+            </div>
+        </fieldset>
+
+        <div class="form-row" style="margin-top:1.5em;"><button id="runButton" class="btn" type="submit">시뮬레이션</button></div>
         <div id="comparison-filenames" style="display: none;"></div>
     </form>
     
+    {# v-070 수정사항: 파일 인식 결과 #}
+    {% if result and result.file_table %}
+    <div class="debug-reports-area">
+        <h2>파일 인식 결과</h2>
+        {% if result.err and not result.debug_reports %}
+            <p class="error-summary">{{ result.err }}</p>
+        {% endif %}
+        {{ result.file_table | safe }}
+    </div>
+    {% elif result and result.err and not result.debug_reports %}
+    <div class="debug-reports-area"><p class="error-summary">{{ result.err }}</p></div>
+    {% endif %}
+
     {% if result and result.debug_reports %}
     <div class="debug-reports-area">
         <h2>디버그 리포트</h2>
@@ -63,6 +94,33 @@
                 {% endfor %}
             </div>
         {% endif %}
+    </div>
+    {% endif %}
+
+    {# v-070 수정사항: 실행 오류 #}
+    {% if result and result.run_error %}
+    <div class="debug-reports-area">
+        <h2>실행 오류</h2>
+        <p class="error-summary">{{ result.run_error }}</p>
+        <details><summary>자세한 오류 내용 (개발자 전달용)</summary><pre class="traceback">{{ result.traceback }}</pre></details>
+    </div>
+    {% endif %}
+
+    {# v-070 수정사항: 결과 파일 #}
+    {% if result and result.outputs %}
+    <div class="debug-reports-area">
+        <h2>결과 파일</h2>
+        <p>저장 위치: {{ result.outputs.folder }}
+            <button type="button" class="btn small-btn" onclick="fetch('{{ url_for('open_folder', run=result.outputs.run) }}')">폴더 열기</button></p>
+        {% for message in result.outputs.messages %}
+            {% if '\n' in message %}<details><summary>자세한 오류 내용</summary><pre class="traceback">{{ message }}</pre></details>
+            {% else %}<p class="note">{{ message }}</p>{% endif %}
+        {% endfor %}
+        <ul class="file-list">
+        {% for name in result.outputs.files %}
+            <li><a href="{{ url_for('download', run=result.outputs.run, name=name) }}">{{ name }}</a></li>
+        {% endfor %}
+        </ul>
     </div>
     {% endif %}
 
@@ -105,17 +163,58 @@
     
     <script>
     // --- UI 스크립트 ---
+    // v-070 수정사항: 파일명(GR준공연도_파일번호_PK코드_건물명_시점.xlsx)을 읽어 칸 아래에 보여줌
+    const CONDITIONS = ['GR이전', 'GR이후', 'N년차'];
+    function readFilename(name) {
+        const parts = name.replace(/\.xlsx?$/i, '').split('_');
+        const pos = parts.findIndex(p => CONDITIONS.includes(p));
+        if (pos < 0) return null;
+        const info = { 시점: parts[pos] };
+        if (/^\d{4}$/.test(parts[0]) && pos >= 4) {
+            info.연도 = parts[0]; info.번호 = parts[1]; info.PK = parts[2]; info.건물명 = parts.slice(3, pos).join('_');
+        } else if (pos >= 2) {
+            info.번호 = parts[0]; info.건물명 = parts.slice(1, pos).join('_');
+        }
+        return info;
+    }
+    function showFile(input, boxId, slot, emptyText) {
+        const box = document.getElementById(boxId);
+        if (!(input.files && input.files[0])) { box.textContent = emptyText; return; }
+        const name = input.files[0].name;
+        const info = readFilename(name);
+        const line = document.createElement('div');
+        line.style.fontSize = '0.85em';
+        line.style.color = '#555';
+        const warn = document.createElement('span');
+        warn.style.color = '#b00020';
+        if (!info) {
+            warn.textContent = '파일명 형식이 아님 (GR준공연도_파일번호_PK코드_건물명_시점.xlsx)';
+        } else {
+            line.textContent = [info.연도, info.번호 && ('No.' + info.번호), info.PK ? ('PK ' + info.PK) : 'PK 없음', info.건물명, info.시점].filter(Boolean).join(' · ');
+            if (info.시점 !== slot) warn.textContent = '  (이 칸은 ' + slot + ')';
+        }
+        line.appendChild(warn);
+        box.textContent = name;
+        box.appendChild(line);
+    }
     document.getElementById('fileInputBefore').addEventListener('change', function() {
-        const box = document.getElementById('filenameBoxBefore');
-        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다.';
+        showFile(this, 'filenameBoxBefore', 'GR이전', '파일이 선택되지 않았습니다.');
     });
     document.getElementById('fileInputAfter').addEventListener('change', function() {
-        const box = document.getElementById('filenameBoxAfter');
-        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다. (선택사항)';
+        showFile(this, 'filenameBoxAfter', 'GR이후', '파일이 선택되지 않았습니다. (선택사항)');
     });
     document.getElementById('fileInputAfterN').addEventListener('change', function() {
-        const box = document.getElementById('filenameBoxAfterN');
-        box.textContent = (this.files && this.files[0]) ? this.files[0].name : '파일이 선택되지 않았습니다. (선택사항)';
+        showFile(this, 'filenameBoxAfterN', 'N년차', '파일이 선택되지 않았습니다. (선택사항)');
+    });
+    // v-070 수정사항: 보고서 자료 파일명, 실행 중 표시
+    function showName(input, boxId) {
+        if (input.files && input.files[0]) document.getElementById(boxId).textContent = input.files[0].name;
+    }
+    document.getElementById('fileInputComment').addEventListener('change', function() { showName(this, 'filenameBoxComment'); });
+    document.getElementById('uploadForm').addEventListener('submit', function() {
+        const button = document.getElementById('runButton');
+        button.textContent = '실행 중... (몇 분 걸릴 수 있습니다)';
+        button.disabled = true;
     });
     // --- 차트 관련 전역 변수 및 설정 ---
     let chartInstances = {};

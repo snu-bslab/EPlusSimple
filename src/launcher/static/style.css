@@ -50,3 +50,16 @@ canvas { width: 100% !important; max-height: 230px; }
 .split-container { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 2em; flex-direction: row; }
 .split-container .inner-chart { display: flex; flex-direction: column; max-height: 300px; }
 .split-container canvas { max-height: 250px; }
+/* v-070 수정사항: 보고서·기상데이터 옵션, 실행 오류, 결과 파일 */
+.options { margin-top: 1.5em; padding: 1em 1.2em 0.2em; border: 1px solid #ddd; border-radius: 8px; }
+.options legend { font-weight: bold; color: #333; padding: 0 0.4em; }
+.option-label { background: #7a8a99; border-color: #687785; min-width: 13em; }
+.option-label:hover { background: #5f6d7a; }
+.check { margin-right: 1.5em; color: #333; }
+.text-label { font-weight: bold; color: #333; min-width: 8em; }
+.text-input { flex-grow: 1; height: 2.2em; padding: 0 0.8em; border: 1px solid #ddd; border-radius: 6px; font-size: 1rem; }
+.btn:disabled { background: #999; border-color: #888; cursor: wait; }
+.small-btn { display: inline-flex; height: 30px; padding: 0 1em; font-size: 0.9rem; margin-left: 0.8em; }
+.note { background: #fff3cd; color: #856404; padding: 0.6em 1em; border: 1px solid #ffeeba; border-radius: 6px; }
+.traceback { white-space: pre-wrap; font-size: 0.8em; background: #2b2b2b; color: #eee; padding: 1em; border-radius: 6px; max-height: 400px; overflow: auto; }
+.file-list li { margin: 0.3em 0; }
