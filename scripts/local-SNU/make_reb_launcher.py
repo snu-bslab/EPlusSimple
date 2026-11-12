@@ -5,6 +5,7 @@ v-070 수정사항: 부동산원 전달용 REB 런처 폴더를 만든다
 
 만드는 것 (기본 dist\\REB_Launcher_V0.7.0)
   REB_Launcher.bat          더블클릭하면 브라우저에 런처가 열린다
+  업데이트.bat              GitHub REB 브랜치의 src 로 코드만 바꾼다 (v-070 수정사항)
   사용법.txt
   venv\\                    Python (flask, openpyxl, matplotlib 포함)
   src\\                     epsimple, idragon, reb, launcher
@@ -14,18 +15,46 @@ v-070 수정사항: 부동산원 전달용 REB 런처 폴더를 만든다
   보고서자료\\              comment.csv 를 넣어 두면 매번 올리지 않아도 된다
 
 기상청 API 키, comment 는 넣지 않는다.
+
+v-070 수정사항: 런처 셸(venv, runtime, bat)과 코드(src)를 나눈다
+  코드만 바뀌면 GitHub REB 브랜치에 올리고 받는 쪽은 업데이트.bat 만 실행한다.
+  새 패키지나 runtime 파일이 필요해지면 src/launcher/config.py 의 REQUIRED_PACK 을 올리고 이 스크립트로 셸을 다시 만든다.
+  셸 버전은 runtime\\pack_version.txt 에 적는다.
 """
 
 import os
 import sys
 import glob
 import shutil
+import re # v-070 수정사항
 
-ROOT    = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT    =os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 VERSION = "0.7.0"
 OUT     = sys.argv[1] if len(sys.argv) > 1 else os.path.join(ROOT, "dist", f"REB_Launcher_V{VERSION}")
 PRUNE   = os.path.join(ROOT, "scripts", "release", "energyplus-release-prune.txt")
 SKIP    = shutil.ignore_patterns("__pycache__", "*.pyc", "uploads", "~$*")
+
+# v-070 수정사항: 셸 버전은 코드가 요구하는 버전(REQUIRED_PACK)으로 적는다
+with open(os.path.join(ROOT, "src", "launcher", "config.py"), encoding="utf-8") as f:
+    PACK = int(re.search(r"REQUIRED_PACK\s*=\s*(\d+)", f.read()).group(1))
+
+# v-070 수정사항: 업데이트 스크립트는 src 안에 있어 코드와 같이 바뀐다. 없으면 GitHub 에서 받는다
+UPDATE_BAT = r"""@echo off
+chcp 65001 > nul
+cd /d "%~dp0"
+echo ==============================================================
+echo  REB GR launcher - code update (GitHub REB branch)
+echo  Close the launcher window first.
+echo ==============================================================
+if exist "src\launcher\update_src.ps1" (
+    copy /y "src\launcher\update_src.ps1" "%TEMP%\reb_update_src.ps1" > nul
+) else (
+    powershell -NoProfile -Command "[Net.ServicePointManager]::SecurityProtocol='Tls12'; Invoke-WebRequest -UseBasicParsing -Uri https://raw.githubusercontent.com/snu-bslab/EPlusSimple/REB/src/launcher/update_src.ps1 -OutFile $env:TEMP\reb_update_src.ps1"
+)
+powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\reb_update_src.ps1" -Root "%~dp0."
+echo.
+pause
+"""
 
 BAT = r"""@echo off
 chcp 65001 > nul
@@ -69,6 +98,12 @@ GUIDE = """GR 정성평가 REB 런처 (EPlusSimple V{version})
   - 그 파일이 없으면 기상청 API허브 자료로 새로 만듭니다. 이때만 런처의 '기상청 API 키' 칸에 키를 넣으세요.
     키는 파일에 저장하지 않고 런처 창을 닫으면 사라집니다. (인터넷 연결 필요)
   - 새로 만든 파일은 runtime\\Weather\\AMY 에 남아 다음부터는 키 없이 씁니다.
+
+코드 업데이트
+  - 런처 창을 닫고 업데이트.bat 을 더블클릭하면 GitHub 에서 최신 코드(src)만 받아 바꿉니다. (인터넷 연결 필요)
+  - venv, runtime, 결과, 보고서자료 는 그대로 둡니다. 이전 코드는 src_이전 폴더에 남습니다.
+  - src\\reb\\data\\report_template.xlsx 도 새 것으로 바뀝니다. 양식을 직접 고쳐 썼다면 src_이전 에서 옮기세요.
+  - "런처 폴더를 새로 받으세요" 가 나오면 이 폴더로는 새 코드를 돌릴 수 없으니 새 런처 폴더를 받으세요.
 """
 
 
@@ -118,6 +153,10 @@ def main():
     os.makedirs(os.path.join(OUT, "src", "launcher", "uploads"))
     with open(os.path.join(OUT, "REB_Launcher.bat"), "w", encoding="utf-8", newline="\r\n") as f:
         f.write(BAT.format(version=VERSION))
+    with open(os.path.join(OUT, "업데이트.bat"), "w", encoding="utf-8", newline="\r\n") as f: # v-070 수정사항
+        f.write(UPDATE_BAT)
+    with open(os.path.join(OUT, "runtime", "pack_version.txt"), "w", encoding="utf-8") as f:  # v-070 수정사항
+        f.write(f"{PACK}\n")
     with open(os.path.join(OUT, "사용법.txt"), "w", encoding="utf-8-sig", newline="\r\n") as f:
         f.write(GUIDE.format(version=VERSION))
 
