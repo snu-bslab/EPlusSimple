@@ -1076,6 +1076,72 @@ class IncompleteProfileEquipment(ExcelException):
         return exceptions
 
 
+
+class ConflictingProfileSetpoints(ExcelException):
+
+    def __init__(self, room, profile, equipment, heating, cooling, day, hour, minute):
+        super().__init__(PROFILE_SHEETNAME, room)
+        self.message = (
+            f"실 '{room}'의 용도프로필 '{profile}'에서 설비 {equipment}의 냉난방 운영이 중복되었습니다. "
+            f"난방 설정온도({heating:g}°C)가 냉방 설정온도({cooling:g}°C)보다 높습니다. 난방 설정온도는 냉방 설정온도보다 낮아야 합니다."
+            f"냉난방 설정온도 충돌 구간: {day[:2]}월 {day[2:]}일 {hour:02d}:{minute:02d}사이."
+        )
+
+    @staticmethod
+    def inspect(exceldata:dict[str, pd.DataFrame]) -> list[ConflictingProfileSetpoints]:
+        if PROFILE_SHEETNAME not in exceldata:
+            return []
+
+        # Reuse the same time parsing and schedule intervals as the REB model.
+        from reb.postprocess import month_periods, window_dayschedule, 프로필설비
+        from idragon import dragon
+
+        exceptions = []
+        supply_counts = _assigned_supply_systems(exceldata).groupby("공급 실").size()
+        rooms = exceldata["실"].dropna(subset=["이름"])
+        for _, column in _user_profiles(exceldata).items():
+            profile = column["프로필 이름"]
+            profile_rooms = rooms.loc[rooms["용도프로필"] == profile, "이름"]
+            for equipment, suffix in enumerate(("", "2"), start=1):
+                assigned_rooms = profile_rooms[profile_rooms.map(supply_counts).ge(equipment)]
+                if assigned_rooms.empty:
+                    continue
+                try:
+                    heating = 프로필설비.from_column(column, f"난방설비{suffix}")
+                    cooling = 프로필설비.from_column(column, f"냉방설비{suffix}")
+                    if not heating or not cooling or not (heating.사용여부 and cooling.사용여부):
+                        continue
+                    if not heating.설정온도 > cooling.설정온도:
+                        continue
+                    heat_periods = month_periods(heating.시작월, heating.종료월)
+                    cool_periods = month_periods(cooling.시작월, cooling.종료월)
+                    heat_day = window_dayschedule(heating.시작, heating.종료, 1, dragon.ScheduleType.ONOFF)
+                    cool_day = window_dayschedule(cooling.시작, cooling.종료, 1, dragon.ScheduleType.ONOFF)
+                except (KeyError, TypeError, ValueError, OverflowError):
+                    # Other profile checks report missing inputs.
+                    continue
+
+                day = min(
+                    (max(h_start, c_start) for h_start, h_end in heat_periods
+                     for c_start, c_end in cool_periods
+                     if max(h_start, c_start) <= min(h_end, c_end)),
+                    default=None,
+                )
+                time = next(
+                    (time for time, heat_on, cool_on in zip(dragon.DaySchedule.time_tuple(), heat_day, cool_day)
+                     if heat_on and cool_on),
+                    None,
+                )
+                if day is not None and time is not None:
+                    exceptions.extend(
+                        ConflictingProfileSetpoints(
+                            room, profile, equipment, heating.설정온도, cooling.설정온도, day, *time,
+                        )
+                        for room in assigned_rooms
+                    )
+
+        return exceptions
+
 class NotUsedProfile(ExcelWarning):
 
     def __init__(self, object_name:str) -> None:
@@ -1112,6 +1178,7 @@ EXCEL_REB_INSPECTORS = [
     InvalidProfileBase,
     IncompleteProfileOccupancy,
     IncompleteProfileEquipment,
+    ConflictingProfileSetpoints,
     # warnings
     NotUsedProfile,
 ]
