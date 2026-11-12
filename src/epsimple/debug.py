@@ -833,7 +833,7 @@ class NotUsedSurfaceConstruction(ExcelWarning):
                 break
             
             # check
-            if row["이름"] not in used_constructions:
+            if row["이름"] != "open" and row["이름"] not in used_constructions:
                 warnings.append(
                     NotUsedSurfaceConstruction(
                         row["이름"]
