@@ -25,10 +25,22 @@
         <input id="fileInputAfter" type="file" name="file_after" accept=".xlsx,.xls">
         <input id="fileInputAfterN" type="file" name="file_afterN" accept=".xlsx,.xls">
 
+        <div class="form-row">
+            <label for="weatherYear">기상 데이터 연도</label>
+            <select id="weatherYear" name="weather_year">
+                <option value="">기존 지역별 기준연도</option>
+                {% for year in ("2019", "2025") %}
+                <option value="{{ year }}" {% if weather_selection == year %}selected{% endif %}>{{ year }}</option>
+                {% endfor %}
+            </select>
+        </div>
         <div class="form-row" style="margin-top:1.5em;"><button class="btn" type="submit">시뮬레이션</button></div>
         <div id="comparison-filenames" style="display: none;"></div>
     </form>
     
+    {% if result and result.err and not result.debug_reports %}
+    <p class="error-summary">{{ result.err }}</p>
+    {% endif %}
     {% if result and result.debug_reports %}
     <div class="debug-reports-area">
         <h2>디버그 리포트</h2>

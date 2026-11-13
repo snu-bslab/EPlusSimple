@@ -37,3 +37,25 @@ Use `runExcelLauncher.bat` to launch a user-friendly web interface.
 1.  Double-click `runExcelLauncher.bat`.
 2.  A local Flask server will start, and the launcher will open a local web interface.
 3.  Upload your "Before" and "After" Excel files to visualize energy performance differences and debug reports.
+
+## REB Launcher weather years
+
+The REB Launcher offers 2019 and 2025 weather for all 39 ASOS stations in
+the existing district mapping. Selecting a year applies it to every
+simulation in the comparison. The default uses the existing district and
+simulation-stage mapping.
+
+The EPWs combine hourly observations from the [KMA API Hub](https://apihub.kma.go.kr/apiList.do)
+(ASOS period endpoint, KST) with the existing station's 2024 EPW. The
+converter replaces valid observed temperature, dew point, humidity,
+station pressure, wind, total sky cover and global horizontal radiation.
+Missing and unobserved fields retain the base EPW values. Direct and
+diffuse solar components are estimates based on the base EPW proportions.
+See `src/reb/data/asos_coverage.csv` for station and year coverage. Files
+for stations without an irradiance sensor may use base EPW irradiance
+throughout. Consider these distinctions when comparing simulated energy
+use across years.
+
+To regenerate from monthly API response text files, run
+`python scripts/build_reb_asos_epw.py PATH_TO_MONTHLY_RESPONSES`.
+The API key is only needed to obtain the monthly responses.

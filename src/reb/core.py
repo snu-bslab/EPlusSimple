@@ -59,6 +59,7 @@ def run_rebexcel(
     save_grr  :bool=True,
     save_idf  :bool=True,
     preprocess:bool=True,
+    weather_year: int | None = None,
     ) -> tuple[GreenRetrofitResult, IDF]:
     
     # define output path
@@ -72,7 +73,7 @@ def run_rebexcel(
     # specify weatherdata
     loc     = pd.read_excel(input_filepath, sheet_name="건물정보", usecols=range(5)).at[0,"주소"]
     simtype = os.path.basename(input_filepath).replace(".xlsx","").split("_")[2].replace("GR","").replace("preprocess","")
-    weatherdata_filepath = find_weatherdata(loc, simtype)
+    weatherdata_filepath = find_weatherdata(loc, simtype, weather_year=weather_year)
     
     # run
     grr = GreenRetrofitResult(grm, idf.run(weatherdata_filepath))

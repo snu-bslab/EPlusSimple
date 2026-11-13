@@ -91,6 +91,10 @@ def getpost() -> str:
     5. **파일 정리**: 작업 완료 후 원본 및 전처리된 모든 임시 파일을 삭제합니다.
     """
     result: Optional[Dict[str, Any]] = None
+    weather_selection = request.form.get("weather_year", "")
+    if weather_selection not in ("", "2019", "2025"):
+        return render_template("index.html", result={"err": "지원하지 않는 기상 연도입니다."}), 400
+    weather_year = int(weather_selection) if weather_selection else None
     # 임시 저장된 원본 파일 경로들을 관리 (key: 원본 파일명, value: Path 객체)
     saved_filepaths: Dict[str, Path] = {}
     # 전처리 후 생성된 파일 경로들을 관리 (정리용)
@@ -141,6 +145,7 @@ def getpost() -> str:
                     file_before.filename,
                     file_after.filename ,
                     file_afterN.filename,
+                    weather_year,
                 )
                 
                 result = {
@@ -159,7 +164,7 @@ def getpost() -> str:
                     path.unlink()
                     deleted_count += 1
                     
-    return render_template("index.html", result=result)
+    return render_template("index.html", result=result, weather_selection=weather_selection)
 
 
 def _run_debugging_phase(
@@ -210,12 +215,12 @@ def _run_debugging_phase(
     
     return debug_reports, has_severe_error, final_report_df
 
-def _execute_rebexcel_wrapper(filepath: Path) -> Any:
+def _execute_rebexcel_wrapper(filepath: Path, weather_year: int | None) -> Any:
     """
     최상위 수준에 정의되어야 multiprocessing에서 피클링이 가능합니다.
     """
     # run_rebexcel의 반환값 중 첫 번째(result 객체)만 사용
-    result, _ = run_rebexcel(str(filepath), save_grr=False, save_idf=False, preprocess=False)
+    result, _ = run_rebexcel(str(filepath), save_grr=False, save_idf=False, preprocess=False, weather_year=weather_year)
     return result
 
 def _run_simulation_phase(
@@ -223,6 +228,7 @@ def _run_simulation_phase(
     file_before_name: str,
     file_after_name: str,
     file_afterN_name: str,
+    weather_year: int | None,
 ) -> Dict[str, Any]:
     """
     [병렬화 버전] 최대 3개의 코어를 사용하여 시뮬레이션을 실행합니다.
@@ -243,7 +249,7 @@ def _run_simulation_phase(
     # 2. 병렬 실행 (최대 3코어 고정)
     num_cores = min(len(unique_paths), 3)
     with Pool(processes=num_cores) as pool:
-        executed_results = pool.map(_execute_rebexcel_wrapper, unique_paths)
+        executed_results = pool.starmap(_execute_rebexcel_wrapper, [(path, weather_year) for path in unique_paths])
 
     # 3. 결과를 이름 기반 딕셔너리로 매핑
     result_map = dict(zip(unique_names, executed_results))
