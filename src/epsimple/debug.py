@@ -351,7 +351,8 @@ class InvalidSurfaceConstruction(ExcelException):
                 break
             
             # check
-            if (not pd.isna(row["구조체 이름"]) and (row["구조체 이름"] not in surface_construction.index)):
+            construction_name = row["구조체 이름"]
+            if pd.notna(construction_name) and construction_name != "open" and construction_name not in surface_construction.index:
                 exceptions.append(
                     InvalidSurfaceConstruction(
                         InvalidSurfaceConstructionSubCategory.INVALID_CONSTRUCTION_NAME,
