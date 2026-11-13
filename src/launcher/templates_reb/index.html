@@ -30,16 +30,16 @@
             <legend>개별 보고서 · 기상데이터</legend>
             <div class="form-row">
                 <label for="fileInputComment" class="file-label option-label">comment.csv (선택)</label>
-                <div class="filename-box" id="filenameBoxComment">선택하지 않으면 보고서자료 폴더의 comment.csv 를 씁니다. 없으면 조사자 의견은 (미기입).</div>
+                <div class="filename-box" id="filenameBoxComment">보고서자료 폴더의 comment.csv 내용이 적용됩니다. 수정을 원하는 경우 업로드해주세요. 파일이 없는 경우 조사자 의견은 (미기입)으로 출력됩니다.</div>
             </div>
             <input id="fileInputComment" type="file" name="comment" accept=".csv">
             <div class="form-row">
-                <label class="check"><input type="checkbox" name="make_report" checked> 개별 보고서 만들기 (엑셀)</label>
-                <label class="check"><input type="checkbox" name="make_pdf" checked> PDF 도 만들기 (Microsoft Excel 필요)</label>
+                <label class="check"><input type="checkbox" name="make_report" checked> 개별 보고서 출력(.xlsx)</label>
+                <label class="check"><input type="checkbox" name="make_pdf" checked> 개별 보고서 출력(.pdf) (.xlsx출력시 지원)</label>
             </div>
             <div class="form-row">
                 <label for="kmaKey" class="text-label">기상청 API 키</label>
-                <input id="kmaKey" class="text-input" type="password" name="kma_key" autocomplete="off" placeholder="실제기상(AMY) 파일이 없을 때만 필요. 저장하지 않습니다">
+                <input id="kmaKey" class="text-input" type="password" name="kma_key" autocomplete="off" placeholder="2018-2025외 실제기상(AMY) 파일 적용이 필요한 경우 입력하세요. (저장되지 않습니다)">
             </div>
         </fieldset>
 
