@@ -38,6 +38,7 @@ from .filename import read_filename
 # ---------------------------------------------------------------------------- #
 
 AMY_DIR = WEATHTERDATA_DIR   # runtime/Weather/AMY
+BUNDLED_AMY_DIR = MAPPING_DIR
 
 # 기상청 ASOS 지점표 (API허브 stn_inf.php 에서 받은 지점번호, 한글 지점명, 소재지)
 STATIONS = pd.read_csv(os.path.join(MAPPING_DIR, "kma_asos_stations.csv"), encoding="utf-8-sig").set_index("지점번호")
@@ -86,6 +87,11 @@ def get_weatherdata(address:str, option:str, year:int|float|None, pk:str|None=No
     return get_amy_weatherdata(address, int(year), authkey)
 
 
+def bundled_amy_filepath(filename: str) -> str | None:
+    filepath = os.path.join(BUNDLED_AMY_DIR, filename)
+    return filepath if os.path.isfile(filepath) else None
+
+
 def describe_weatherdata(address:str, option:str, year:int|float|None) -> str:
     """get_weatherdata 가 쓸 파일을 실행 전에 글로 보여준다. 파일은 만들지 않는다"""
 
@@ -99,7 +105,7 @@ def describe_weatherdata(address:str, option:str, year:int|float|None) -> str:
     filename = f"{station['Station_num']}_{int(year)}.epw"
     text     = f"실제기상(AMY) {int(year)}년 기상청 {station_name(station['Station_num'])}({station['Station_num']}) 지점"
 
-    if os.path.exists(os.path.join(AMY_DIR, filename)):
+    if os.path.isfile(os.path.join(AMY_DIR, filename)) or bundled_amy_filepath(filename):
         return text
     if not os.environ.get("KMA_API_KEY"):
         raise ValueError(f"{filename} 이 없고 기상청 API 키(런처의 키 입력칸 또는 환경변수 KMA_API_KEY)도 없어 만들 수 없습니다.")
@@ -130,6 +136,10 @@ def get_amy_weatherdata(address:str, year:int, authkey:str|None=None) -> str:
 
     if os.path.exists(filepath):
         return filepath
+
+    bundled = bundled_amy_filepath(os.path.basename(filepath))
+    if bundled is not None:
+        return bundled
 
     print(f"기상청 자료 수집 중: {station_name(station['Station_num'])}({station['Station_num']}) {year}년") # v-070 수정사항
     asos = download_asos(station["Station_num"], year, authkey)
