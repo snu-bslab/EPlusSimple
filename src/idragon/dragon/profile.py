@@ -3148,14 +3148,19 @@ class Schedule(UserList):
             )
 
         inferred_type = rulesets[0][2].type
+        
+        if (len(rulesets) == 1 and rulesets[0][0] in ("0101", cls.TIME_TUPLE[0])
+            and rulesets[0][1] in ("1231", cls.TIME_TUPLE[-1])):
+            return cls(name, [rulesets[0][2]] * cls.FIXED_LENGTH)
 
-        # Create default zero RuleSets with the same inferred type.
-        schedule = cls(name, type=inferred_type)
+        else:
+            # Create default zero RuleSets with the same inferred type.
+            schedule = cls(name, type=inferred_type)
 
-        for start, end, ruleset in rulesets:
-            schedule.apply(ruleset, start=start, end=end)
+            for start, end, ruleset in rulesets:
+                schedule.apply(ruleset, start=start, end=end)
 
-        return schedule
+            return schedule
     
     @classmethod
     def from_windows(
