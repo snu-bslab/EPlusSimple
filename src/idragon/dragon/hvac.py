@@ -2489,7 +2489,7 @@ class EquipmentListAppender(SupplySystemToIdfPostProcessor):
     @staticmethod
     def count_current_equipments(equiplist:IdfObject) -> int:
         
-        for idx in range(1, 100):
+        for idx in range(1, 1000):
             
             if equiplist[f"Zone Equipment {idx} Name"] is None:
                 return idx-1
@@ -2596,7 +2596,7 @@ class SequentialLoadFractionController(
         objname: str,
     ) -> int:
 
-        for index in range(1, 100):
+        for index in range(1, 1000):
 
             if (
                 equipmentlist[

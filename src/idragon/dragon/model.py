@@ -186,6 +186,9 @@ class EnergyModel:
         
     def to_idf(self) -> IDF:
         
+        from ..idd_capacity_hotfix import ensure_installed, check_idf
+        ensure_installed() 
+        
         # create default objects
         idf = EnergyModel.create_default_idf()
         
@@ -270,6 +273,7 @@ class EnergyModel:
         for wt in self.wt:
             idf.append(*wt.to_idf_object())
         
+        check_idf(idf)
         return idf
     
     
